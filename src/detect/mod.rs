@@ -221,7 +221,7 @@ fn lookup_agent(name: &str) -> Option<Agent> {
         "qwen" | "qwen-code" | "qwen code" => Some(Agent::Qwen),
         "letta" | "letta-code" | "letta code" => Some(Agent::Letta),
         "maki" => Some(Agent::Maki),
-        "muse" | "muse-code" | "muse-cli" => Some(Agent::Muse),
+        "muse" | "musecode" | "muse code" | "muse-code" | "muse-cli" => Some(Agent::Muse),
         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
         _ => None,
     }
@@ -1000,6 +1000,8 @@ mod tests {
         assert_eq!(identify_agent("Letta Code"), Some(Agent::Letta));
         assert_eq!(identify_agent("maki"), Some(Agent::Maki));
         assert_eq!(identify_agent("muse"), Some(Agent::Muse));
+        assert_eq!(identify_agent("musecode"), Some(Agent::Muse));
+        assert_eq!(identify_agent("muse code"), Some(Agent::Muse));
         assert_eq!(identify_agent("muse-code"), Some(Agent::Muse));
         assert_eq!(identify_agent("muse-cli"), Some(Agent::Muse));
         assert_eq!(identify_agent("muse-bin-0.1.0-R708.1"), Some(Agent::Muse));

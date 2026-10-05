@@ -783,3 +783,14 @@ contains = ["active"]
 "#;
     assert!(parse_manifest(manifest).is_err());
 }
+
+#[test]
+fn muse_1_4_bottom_buffer_evaluates_to_idle() {
+    let screen =
+        "Previous turn output\nDone with task.\n\n❯\ngpt-4o · medium · /home/user/project\n";
+    let explain = explain(Agent::Muse, screen);
+    assert_eq!(explain.state, AgentState::Idle);
+    assert!(explain.visible_idle);
+    assert!(!explain.visible_working);
+    assert!(!explain.visible_blocker);
+}
