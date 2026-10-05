@@ -55,12 +55,23 @@ impl App {
                 None => self.workspace_creation_source(),
             }
         };
-        let cwd = params.cwd.map(PathBuf::from).unwrap_or_else(|| {
-            source_workspace_index.map_or_else(
+        let cwd = match params.cwd {
+            Some(path) => {
+                let path_buf = PathBuf::from(path);
+                if !path_buf.is_dir() {
+                    return encode_error(
+                        id,
+                        "invalid_directory",
+                        format!("directory does not exist: {}", path_buf.display()),
+                    );
+                }
+                path_buf
+            }
+            None => source_workspace_index.map_or_else(
                 || self.resolve_new_terminal_cwd(None),
                 |index| self.resolved_new_workspace_cwd_from(index),
-            )
-        });
+            ),
+        };
         let extra_env = match super::env::normalize_launch_env(params.env) {
             Ok(env) => env,
             Err((code, message)) => return encode_error(id, &code, message),
@@ -555,6 +566,44 @@ mod tests {
         );
         shutdown_test_runtimes(&mut app);
         let _ = std::fs::remove_dir_all(&source_cwd);
+    }
+
+    #[tokio::test]
+    async fn workspace_create_rejects_nonexistent_cwd() {
+        use super::super::test_support::{exiting_test_command, shutdown_test_runtimes};
+        use crate::api::schema::ErrorResponse;
+        use crate::config::ShellModeConfig;
+
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &Config::default(),
+            crate::app::AppPolicy::TEST,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        app.state.default_shell = exiting_test_command().into();
+        app.state.shell_mode = ShellModeConfig::NonLogin;
+        app.state.workspaces = vec![Workspace::test_new("first")];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.ensure_test_terminals();
+
+        let nonexistent =
+            std::env::temp_dir().join(format!("herdr-ws-nonexistent-{}", std::process::id()));
+        let response = app.handle_workspace_create(
+            "req".into(),
+            WorkspaceCreateParams {
+                source_workspace_id: None,
+                cwd: Some(nonexistent.display().to_string()),
+                focus: false,
+                label: None,
+                env: Default::default(),
+            },
+        );
+        let error: ErrorResponse = serde_json::from_str(&response).unwrap();
+        assert_eq!(error.error.code, "invalid_directory");
+        shutdown_test_runtimes(&mut app);
     }
 
     fn app_with_linked_worktree() -> App {

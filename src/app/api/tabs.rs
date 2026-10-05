@@ -62,9 +62,20 @@ impl App {
         } else {
             return encode_error(id, "workspace_not_found", "no active workspace");
         };
-        let cwd = cwd.map(PathBuf::from).unwrap_or_else(|| {
-            self.resolve_new_terminal_cwd(self.focused_pane_cwd_in_workspace(ws_idx))
-        });
+        let cwd = match cwd {
+            Some(path) => {
+                let path_buf = PathBuf::from(path);
+                if !path_buf.is_dir() {
+                    return encode_error(
+                        id,
+                        "invalid_directory",
+                        format!("directory does not exist: {}", path_buf.display()),
+                    );
+                }
+                path_buf
+            }
+            None => self.resolve_new_terminal_cwd(self.focused_pane_cwd_in_workspace(ws_idx)),
+        };
         let (rows, cols) = self.state.new_pane_size(crate::ui::NewPanePlacement::Alone);
         let default_shell = self.state.default_shell.clone();
         let scrollback_limit_bytes = self.state.pane_scrollback_limit_bytes;
@@ -323,7 +334,7 @@ mod tests {
     use super::super::test_support::{exiting_test_command, shutdown_test_runtimes};
     use super::*;
     use crate::{
-        api::schema::SuccessResponse,
+        api::schema::{ErrorResponse, SuccessResponse},
         config::{Config, ShellModeConfig},
         workspace::Workspace,
     };
@@ -477,6 +488,43 @@ mod tests {
             crate::worktree::canonical_or_original(created_cwd),
             crate::worktree::canonical_or_original(&cached_cwd)
         );
+        shutdown_test_runtimes(&mut app);
+    }
+
+    #[tokio::test]
+    async fn tab_create_rejects_nonexistent_cwd() {
+        let event_hub = crate::api::EventHub::default();
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &Config::default(),
+            crate::app::AppPolicy::TEST,
+            None,
+            api_rx,
+            event_hub,
+        );
+        app.state.default_shell = exiting_test_command().into();
+        app.state.shell_mode = ShellModeConfig::NonLogin;
+        let workspace = Workspace::test_new("tabs");
+        app.state.workspaces = vec![workspace];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.ensure_test_terminals();
+
+        let nonexistent =
+            std::env::temp_dir().join(format!("herdr-nonexistent-{}", std::process::id()));
+        let response = app.handle_tab_create(
+            "req".into(),
+            TabCreateParams {
+                workspace_id: None,
+                cwd: Some(nonexistent.display().to_string()),
+                focus: false,
+                label: None,
+                env: Default::default(),
+            },
+        );
+
+        let error: ErrorResponse = serde_json::from_str(&response).unwrap();
+        assert_eq!(error.error.code, "invalid_directory");
         shutdown_test_runtimes(&mut app);
     }
 }
