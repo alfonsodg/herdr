@@ -64,10 +64,23 @@ impl App {
                 direction,
                 ratio: params.ratio.unwrap_or(0.5),
             });
-        let split_cwd = params.cwd.map(std::path::PathBuf::from).or_else(|| {
-            let follow_cwd = self.launch_cwd_for_pane_in_workspace(ws_idx, target_pane_id);
-            Some(self.resolve_new_terminal_cwd(follow_cwd))
-        });
+        let split_cwd = match params.cwd {
+            Some(path) => {
+                let path_buf = std::path::PathBuf::from(path);
+                if !path_buf.is_dir() {
+                    return encode_error(
+                        id,
+                        "invalid_directory",
+                        format!("directory does not exist: {}", path_buf.display()),
+                    );
+                }
+                Some(path_buf)
+            }
+            None => {
+                let follow_cwd = self.launch_cwd_for_pane_in_workspace(ws_idx, target_pane_id);
+                Some(self.resolve_new_terminal_cwd(follow_cwd))
+            }
+        };
         let default_shell = self.state.default_shell.clone();
         let scrollback_limit_bytes = self.state.pane_scrollback_limit_bytes;
         let host_terminal_theme = self.state.host_terminal_theme;
