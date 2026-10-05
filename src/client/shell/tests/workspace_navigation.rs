@@ -906,8 +906,6 @@ fn cancelled_close_does_not_restore_an_older_navigation_highlight() {
     request_local_navigation(&mut state, 2);
     state.open_confirm_close_overlay("ws_1".into());
     preview_key(&mut state, b"\x1b");
-    assert_eq!(state.mode, ClientShellMode::Navigate);
-    preview_key(&mut state, b"\x1b");
     assert_eq!(state.mode, ClientShellMode::Terminal);
     assert_local_highlight(&mut state, "ws_1");
 }

@@ -574,6 +574,7 @@ pub(super) struct ClientConfirmCloseOverlay {
     pub(super) workspace_id: String,
     pub(super) close_group: bool,
     pub(super) tab_target: Option<ClientTabCloseConfirmation>,
+    pub(super) previous_mode: ClientShellMode,
     pub(super) title: String,
     pub(super) detail: String,
 }
