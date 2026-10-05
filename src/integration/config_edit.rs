@@ -464,7 +464,18 @@ pub(crate) fn update_hermes_enabled_plugin(content: &str, enabled: bool) -> Stri
 
         match (enabled, existing_item_index) {
             (true, Some(_)) | (false, None) => return content.to_string(),
-            (true, None) => lines.insert(list_start, "    - herdr-agent-state".to_string()),
+            (true, None) => {
+                let item_indent = lines[list_start..list_end]
+                    .iter()
+                    .chain(lines[plugins_index + 1..plugins_end].iter())
+                    .find_map(|line| yaml_list_item_value(line).and_then(|_| yaml_indent(line)))
+                    .unwrap_or(4);
+                let indent = " ".repeat(item_indent);
+                lines.insert(
+                    list_start,
+                    format!("{indent}- {HERMES_PLUGIN_INSTALL_NAME}"),
+                );
+            }
             (false, Some(index)) => {
                 lines.remove(index);
             }
@@ -508,8 +519,16 @@ pub(crate) fn update_hermes_enabled_plugin(content: &str, enabled: bool) -> Stri
     }
 
     if enabled {
+        let item_indent = lines[plugins_index + 1..plugins_end]
+            .iter()
+            .find_map(|line| yaml_list_item_value(line).and_then(|_| yaml_indent(line)))
+            .unwrap_or(4);
+        let indent = " ".repeat(item_indent);
         lines.insert(plugins_index + 1, "  enabled:".to_string());
-        lines.insert(plugins_index + 2, "    - herdr-agent-state".to_string());
+        lines.insert(
+            plugins_index + 2,
+            format!("{indent}- {HERMES_PLUGIN_INSTALL_NAME}"),
+        );
         return join_yaml_lines(lines, trailing_newline);
     }
 
