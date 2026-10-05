@@ -2918,6 +2918,42 @@ fn install_hermes_converts_flow_plugin_list_to_block_list() {
 }
 
 #[test]
+fn install_hermes_preserves_indentless_sequence() {
+    let input = "plugins:\n  enabled:\n  - example-plugin\n  disabled:\n  - other-plugin\n";
+    let config = update_hermes_enabled_plugin(input, true);
+    assert_eq!(
+        config,
+        "plugins:\n  enabled:\n  - herdr-agent-state\n  - example-plugin\n  disabled:\n  - other-plugin\n"
+    );
+}
+
+#[test]
+fn install_hermes_preserves_indentless_enabled_list() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let home = base.join("home");
+    let hermes_dir = home.join(".hermes");
+    fs::create_dir_all(&hermes_dir).unwrap();
+    fs::write(
+        hermes_dir.join("config.yaml"),
+        "plugins:\n  enabled:\n  - example-plugin\n",
+    )
+    .unwrap();
+    std::env::set_var("HOME", &home);
+
+    install_hermes().unwrap();
+
+    let config = fs::read_to_string(hermes_dir.join("config.yaml")).unwrap();
+    assert_eq!(
+        config,
+        "plugins:\n  enabled:\n  - herdr-agent-state\n  - example-plugin\n"
+    );
+
+    std::env::remove_var("HOME");
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
 fn install_hermes_converts_inline_enabled_list_to_block_list() {
     let config = update_hermes_enabled_plugin("plugins:\n  enabled: [example-plugin]\n", true);
     assert_eq!(
