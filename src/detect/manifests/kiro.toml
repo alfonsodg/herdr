@@ -1,7 +1,7 @@
 id = "kiro"
-version = "2026.09.19.1"
+version = "2026.10.05.1"
 min_engine_version = 2
-updated_at = "2026-09-19T00:00:00Z"
+updated_at = "2026-10-05T00:00:00Z"
 aliases = ["kiro-cli"]
 
 [[rules]]
@@ -20,27 +20,16 @@ region = "bottom_non_empty_lines(8)"
 visible_blocker = true
 any = [
   { all = [
-    { regex = ['(?is)(?:^|\n)\s*esc\s+to\s+close\b(?:[^\n]*\bto\s+navigate\b[^\n]*|.*\bto\s+navigate\b.*\bto\s+select\b.*\btab\s+to\s+edit|[^\n]*\benter\s+to\s+see\s+more\s+options)\s*\z'] },
+    { line_regex = ['(?i)^\s*esc\s+to\s+(?:close|cancel)\b'] },
     { any = [
-      { line_regex = [
-        '(?i)^\s*[>❯]\s*(?:allow|always allow|deny|always deny)\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?allow\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?always allow\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?deny\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?always deny\s*$',
-      ] },
-      { line_regex = [
-        '(?i)^\s*[>❯]\s*(?:yes, single permission|trust, always allow in this session|no \(tab to edit\))\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?yes, single permission\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?trust, always allow in this session\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?no \(tab to edit\)\s*$',
-      ] },
-      { line_regex = [
-        '(?i)^\s*[>❯]\s*(?:trust\b.*|entire tool)\s*$',
-        '(?i)^\s*(?:[>❯]\s*)?(?:trust )?entire tool(?:\s+\([^\n]*\))?(?:\s+(?:session|workspace|always))?\s*$',
-      ] },
+      { line_regex = ['(?i)^\s*[>❯›]?\s*(?:allow|always allow|deny|always deny)\s*$'] },
+      { line_regex = ['(?i)^\s*[>❯›]?\s*(?:yes, single permission|trust, always allow in this session|no \(tab to edit\))\s*$'] },
+      { line_regex = ['(?i)^\s*[>❯›]?\s*(?:trust\b.*|entire tool)\b'] },
     ] },
   ] },
+  { line_regex = ['(?i)\[y\/n\]|\(y\/n\)|\(allow\/deny\)'] },
+  { line_regex = ['(?i)(?:allow|approve|execute|run|proceed).*\b(?:\[y\/n\]|\(y\/n\)|\(yes\/no\)|y\/n|yes\/no)'] },
+  { contains = ["tool approval", "requires approval"] },
 ]
 
 [[rules]]

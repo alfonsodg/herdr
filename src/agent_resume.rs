@@ -317,6 +317,15 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
                 session_ref.value.clone(),
             ]
         }
+        ("herdr:kiro", "kiro" | "kiro-cli", AgentSessionRefKind::Id)
+        | ("herdr:kiro-cli", "kiro-cli", AgentSessionRefKind::Id) => {
+            vec![
+                "kiro-cli".into(),
+                "chat".into(),
+                "--resume-id".into(),
+                session_ref.value.clone(),
+            ]
+        }
         _ => return None,
     };
 
@@ -357,6 +366,9 @@ pub(crate) fn is_official_agent_source(source: &str, agent: &str) -> bool {
             | ("herdr:letta", "letta")
             | ("herdr:muse", "muse")
             | ("herdr:command-code", "command-code")
+            | ("herdr:kiro", "kiro")
+            | ("herdr:kiro", "kiro-cli")
+            | ("herdr:kiro-cli", "kiro-cli")
     )
 }
 
@@ -683,6 +695,26 @@ mod tests {
             .argv,
             vec!["command-code", "--resume", "cmd-session"]
         );
+        assert_eq!(
+            plan(
+                "herdr:kiro",
+                "kiro",
+                &AgentSessionRef::id("kiro-session").unwrap()
+            )
+            .unwrap()
+            .argv,
+            vec!["kiro-cli", "chat", "--resume-id", "kiro-session"]
+        );
+        assert_eq!(
+            plan(
+                "herdr:kiro",
+                "kiro-cli",
+                &AgentSessionRef::id("kiro-session-2").unwrap()
+            )
+            .unwrap()
+            .argv,
+            vec!["kiro-cli", "chat", "--resume-id", "kiro-session-2"]
+        );
         assert!(plan(
             "herdr:letta",
             "letta",
@@ -897,10 +929,23 @@ mod tests {
         let devin_session = absolute_test_path("devin-session");
         let muse_session = absolute_test_path("muse-session");
         let cmd_session = absolute_test_path("cmd-session");
+        let kiro_session = absolute_test_path("kiro-session");
         assert!(plan(
             "herdr:hermes",
             "hermes",
             &AgentSessionRef::path(&hermes_session).unwrap()
+        )
+        .is_none());
+        assert!(plan(
+            "herdr:kiro",
+            "kiro",
+            &AgentSessionRef::path(&kiro_session).unwrap()
+        )
+        .is_none());
+        assert!(plan(
+            "herdr:kiro",
+            "kiro-cli",
+            &AgentSessionRef::path(&kiro_session).unwrap()
         )
         .is_none());
         assert!(plan(
