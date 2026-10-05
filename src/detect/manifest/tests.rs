@@ -794,3 +794,44 @@ fn muse_1_4_bottom_buffer_evaluates_to_idle() {
     assert!(!explain.visible_working);
     assert!(!explain.visible_blocker);
 }
+
+#[test]
+fn command_code_prompt_evaluates_to_idle() {
+    let screen = "Previous tool output\nFinished command.\n\ncommand-code> \n";
+    let explain = explain(Agent::CommandCode, screen);
+    assert_eq!(explain.state, AgentState::Idle);
+    assert!(explain.visible_idle);
+    assert!(!explain.visible_working);
+    assert!(!explain.visible_blocker);
+}
+
+#[test]
+fn command_code_active_spinner_evaluates_to_working() {
+    let screen = "Thinking...\n⠋ Running command across workspace\n";
+    let explain = explain(Agent::CommandCode, screen);
+    assert_eq!(explain.state, AgentState::Working);
+    assert!(explain.visible_working);
+    assert!(!explain.visible_blocker);
+}
+
+#[test]
+fn command_code_osc_title_evaluates_to_working() {
+    let explain = explain_with_input(
+        Agent::CommandCode,
+        DetectionInput {
+            screen: "",
+            osc_title: "command-code ⠋ running task",
+            osc_progress: "",
+        },
+    );
+    assert_eq!(explain.state, AgentState::Working);
+    assert!(explain.visible_working);
+}
+
+#[test]
+fn command_code_tool_approval_evaluates_to_blocked() {
+    let screen = "Action suggested:\nDo you want to run this command? y/n\n";
+    let explain = explain(Agent::CommandCode, screen);
+    assert_eq!(explain.state, AgentState::Blocked);
+    assert!(explain.visible_blocker);
+}
