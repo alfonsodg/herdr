@@ -1731,7 +1731,16 @@ impl ClientShellState {
                     outcome.repaint = true;
                 }
             } else {
-                self.overlay = None;
+                if let Some(ClientShellOverlay::ConfirmClose(confirm)) = self.overlay.take() {
+                    self.pending_workspace_highlight = None;
+                    self.mode = confirm.previous_mode;
+                    if self.mode == ClientShellMode::Navigate {
+                        self.navigate_workspace_id = self.focused_navigation_target();
+                        self.reveal_navigation_workspace = true;
+                    }
+                } else {
+                    self.overlay = None;
+                }
                 outcome.repaint = true;
             }
             return;

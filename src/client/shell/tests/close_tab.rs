@@ -109,7 +109,24 @@ fn last_tab_close_confirmation_can_be_cancelled() {
         };
         assert_no_close(&cancelled);
         assert!(state.overlay.is_none());
+        assert_eq!(state.mode, ClientShellMode::Terminal);
     }
+}
+
+#[test]
+fn last_tab_close_confirmation_preserves_navigate_mode() {
+    let mut state = close_state(true, 1);
+    state.mode = ClientShellMode::Navigate;
+    assert_no_close(&request_close(&mut state, false));
+    assert!(matches!(
+        state.overlay,
+        Some(ClientShellOverlay::ConfirmClose(_))
+    ));
+    state.compose(106, 24).unwrap();
+    let cancelled = state.handle_input_bytes(b"\x1b");
+    assert_no_close(&cancelled);
+    assert!(state.overlay.is_none());
+    assert_eq!(state.mode, ClientShellMode::Navigate);
 }
 
 #[test]

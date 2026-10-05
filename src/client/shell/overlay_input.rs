@@ -879,10 +879,15 @@ impl ClientShellState {
             if key.code == KeyCode::Enter {
                 self.accept_close_confirmation(outcome);
             } else if key.code == KeyCode::Esc {
-                self.overlay = None;
-                self.mode = ClientShellMode::Navigate;
-                self.navigate_workspace_id = self.focused_navigation_target();
-                self.reveal_navigation_workspace = true;
+                let Some(ClientShellOverlay::ConfirmClose(confirm)) = self.overlay.take() else {
+                    return;
+                };
+                self.pending_workspace_highlight = None;
+                self.mode = confirm.previous_mode;
+                if self.mode == ClientShellMode::Navigate {
+                    self.navigate_workspace_id = self.focused_navigation_target();
+                    self.reveal_navigation_workspace = true;
+                }
                 outcome.repaint = true;
             }
             return;
@@ -1150,6 +1155,7 @@ impl ClientShellState {
                 workspace_id,
                 close_group: closes_group,
                 tab_target,
+                previous_mode: self.mode,
                 title: if closes_group {
                     "Close worktree group?".to_owned()
                 } else {
