@@ -638,6 +638,8 @@ impl TerminalState {
         // leaves the pane - a recorded exit with no agent detected any more.
         if agent.is_none() && self.recent_agent_process_exit.is_some() {
             self.clear_agent_name();
+            self.persisted_agent_session = None;
+            self.hook_authority = None;
         }
         let effective_state_change = self.recompute_effective_state(
             previous_agent_label,
@@ -1353,11 +1355,16 @@ impl TerminalState {
     ) -> Option<crate::agent_resume::AgentSessionRef> {
         self.current_session_identity_for_persistence().and_then(
             |(current_source, current_agent, current_kind, current_value)| {
-                (current_source == source
-                    && current_agent == agent_label
-                    && current_kind == crate::agent_resume::AgentSessionRefKind::Id
-                    && session_ref.kind == crate::agent_resume::AgentSessionRefKind::Id
-                    && current_value != session_ref.value
+                let is_conflict = if current_source != source || current_agent != agent_label {
+                    false
+                } else if current_kind == crate::agent_resume::AgentSessionRefKind::Id {
+                    session_ref.kind != crate::agent_resume::AgentSessionRefKind::Id
+                        || current_value != session_ref.value
+                } else {
+                    session_ref.kind != crate::agent_resume::AgentSessionRefKind::Path
+                };
+
+                (is_conflict
                     && !Self::session_report_allows_session_replacement(
                         source,
                         agent_label,
@@ -4833,6 +4840,36 @@ mod tests {
     }
 
     #[test]
+    fn nested_subagent_path_session_ref_does_not_replace_interactive_session() {
+        let mut terminal = test_terminal();
+        terminal
+            .set_agent_session_ref(
+                "herdr:claude".into(),
+                "claude".into(),
+                crate::agent_resume::AgentSessionRef::id("claude-parent-session"),
+                Some(20),
+            )
+            .expect("initial session should be accepted");
+
+        let mutation = terminal.set_agent_session_ref_for_session_start(
+            "herdr:claude".into(),
+            "claude".into(),
+            crate::agent_resume::AgentSessionRef::path(test_session_path("subagent.jsonl")),
+            Some(21),
+            None,
+        );
+
+        assert!(mutation.is_none());
+        assert_eq!(
+            terminal
+                .persisted_agent_session
+                .as_ref()
+                .map(|session| session.session_ref.value.as_str()),
+            Some("claude-parent-session")
+        );
+    }
+
+    #[test]
     fn claude_lifecycle_session_ref_replaces_existing_session_ref() {
         for session_start_source in ["clear", "resume", "compact"] {
             let mut terminal = test_terminal();
@@ -6207,6 +6244,40 @@ mod tests {
                 .map(|session| session.session_ref.value.as_str()),
             Some("claude-session")
         );
+    }
+
+    #[test]
+    fn agent_transition_to_shell_clears_persisted_session_and_hook_authority() {
+        let mut terminal = test_terminal();
+        terminal.set_persisted_agent_session(crate::agent_resume::PersistedAgentSession {
+            source: "herdr:claude".into(),
+            agent: "claude".into(),
+            session_ref: crate::agent_resume::AgentSessionRef::id("claude-session").unwrap(),
+        });
+        terminal.set_detected_state(Some(Agent::Claude), AgentState::Working);
+
+        let _ = terminal.set_detected_state_with_screen_signals_at(
+            Some(Agent::Claude),
+            AgentState::Idle,
+            false,
+            false,
+            false,
+            true,
+            std::time::Instant::now(),
+        );
+        let _ = terminal.set_detected_state_with_screen_signals_at(
+            None,
+            AgentState::Unknown,
+            false,
+            false,
+            false,
+            false,
+            std::time::Instant::now(),
+        );
+
+        assert!(terminal.persisted_agent_session.is_none());
+        assert!(terminal.hook_authority.is_none());
+        assert!(terminal.effective_agent_label().is_none());
     }
 
     #[test]

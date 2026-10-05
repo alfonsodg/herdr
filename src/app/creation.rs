@@ -416,6 +416,8 @@ impl App {
 fn terminal_agent_session_info(
     terminal: &crate::terminal::TerminalState,
 ) -> Option<crate::api::schema::AgentSessionInfo> {
+    terminal.effective_agent_label()?;
+
     if let Some(authority) = terminal.hook_authority.as_ref() {
         if let Some(session_ref) = authority.session_ref.as_ref() {
             return Some(crate::api::schema::AgentSessionInfo {
@@ -436,4 +438,31 @@ fn terminal_agent_session_info(
             kind: session.session_ref.kind,
             value: session.session_ref.value.clone(),
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::detect::{Agent, AgentState};
+    use crate::terminal::{TerminalId, TerminalState};
+
+    #[test]
+    fn terminal_agent_session_info_returns_none_when_effective_agent_label_is_none() {
+        let mut terminal = TerminalState::new(TerminalId::alloc(), "/tmp".into());
+        terminal.set_persisted_agent_session(crate::agent_resume::PersistedAgentSession {
+            source: "herdr:claude".into(),
+            agent: "claude".into(),
+            session_ref: crate::agent_resume::AgentSessionRef::id("claude-old-session").unwrap(),
+        });
+
+        // Pane is a plain shell (no agent detected, no effective agent label)
+        assert!(terminal.effective_agent_label().is_none());
+        assert_eq!(terminal_agent_session_info(&terminal), None);
+
+        // When agent is detected, session info is returned
+        terminal.set_detected_state(Some(Agent::Claude), AgentState::Working);
+        assert!(terminal.effective_agent_label().is_some());
+        let info = terminal_agent_session_info(&terminal).expect("session info should be present");
+        assert_eq!(info.value, "claude-old-session");
+    }
 }
