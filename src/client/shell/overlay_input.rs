@@ -629,6 +629,7 @@ impl ClientShellState {
             return;
         }
         if matches!(self.overlay, Some(ClientShellOverlay::Navigator(_))) {
+            let text_character = crate::input::keybind_help_text_char(key);
             let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
             let search_focused = matches!(
                 self.overlay,
@@ -718,7 +719,7 @@ impl ClientShellState {
                 outcome.repaint = true;
                 return;
             }
-            if code == KeyCode::Char('/') && modifiers.is_empty() {
+            if (code == KeyCode::Char('/') && modifiers.is_empty()) || text_character == Some('/') {
                 if let Some(ClientShellOverlay::Navigator(navigator)) = self.overlay.as_mut() {
                     navigator.search_focused = true;
                     navigator.filter = None;

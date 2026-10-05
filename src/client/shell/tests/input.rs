@@ -675,3 +675,64 @@ fn every_configured_prefix_enters_prefix_mode() {
         assert_eq!(state.mode, ClientShellMode::Terminal);
     }
 }
+
+#[test]
+fn navigator_and_worktree_search_support_shifted_slash() {
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+
+    // 1. Test Navigator with shifted slash via shifted_codepoint (e.g. Portuguese Shift+7)
+    state.open_navigator_overlay();
+    let Some(ClientShellOverlay::Navigator(navigator)) = state.overlay.as_ref() else {
+        panic!("navigator overlay expected");
+    };
+    assert!(!navigator.search_focused);
+
+    let shifted_seven_slash =
+        crate::input::TerminalKey::new(KeyCode::Char('7'), KeyModifiers::SHIFT)
+            .with_shifted_codepoint('/' as u32);
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Key(shifted_seven_slash)]);
+    assert!(outcome.repaint);
+    let Some(ClientShellOverlay::Navigator(navigator)) = state.overlay.as_ref() else {
+        panic!("navigator overlay expected");
+    };
+    assert!(navigator.search_focused);
+
+    // Reset search focus
+    if let Some(ClientShellOverlay::Navigator(navigator)) = state.overlay.as_mut() {
+        navigator.search_focused = false;
+    }
+
+    // 2. Test Navigator with Char('/') and Shift modifier (e.g. French layout)
+    let shifted_char_slash =
+        crate::input::TerminalKey::new(KeyCode::Char('/'), KeyModifiers::SHIFT);
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Key(shifted_char_slash)]);
+    assert!(outcome.repaint);
+    let Some(ClientShellOverlay::Navigator(navigator)) = state.overlay.as_ref() else {
+        panic!("navigator overlay expected");
+    };
+    assert!(navigator.search_focused);
+
+    // 3. Test WorktreeOpen with shifted slash
+    state.overlay = Some(ClientShellOverlay::WorktreeOpen(
+        ClientWorktreeOpenOverlay {
+            source_workspace_id: "ws_1".into(),
+            entries: Vec::new(),
+            selected: 0,
+            query: TextEditor::default(),
+            search_focused: false,
+            error: None,
+            opening: false,
+        },
+    ));
+    let shifted_seven_slash =
+        crate::input::TerminalKey::new(KeyCode::Char('7'), KeyModifiers::SHIFT)
+            .with_shifted_codepoint('/' as u32);
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Key(shifted_seven_slash)]);
+    assert!(outcome.repaint);
+    let Some(ClientShellOverlay::WorktreeOpen(open)) = state.overlay.as_ref() else {
+        panic!("worktree open overlay expected");
+    };
+    assert!(open.search_focused);
+}
