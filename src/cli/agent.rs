@@ -566,7 +566,8 @@ fn wait_for_named_agent(
     expected_kind: &str,
     expected_terminal_id: &str,
 ) -> std::io::Result<Result<serde_json::Value, serde_json::Value>> {
-    let deadline = Instant::now().checked_add(timeout);
+    let started_at = Instant::now();
+    let deadline = started_at.checked_add(timeout);
     let mut first_poll = true;
     loop {
         if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
@@ -585,6 +586,15 @@ fn wait_for_named_agent(
         if response.get("error").is_some() {
             response = resolve_agent_target_unchecked(fallback_pane_id, poll_id)?;
             if response.get("error").is_some() {
+                if started_at.elapsed() >= Duration::from_millis(500)
+                    && pane_shell_only(fallback_pane_id).unwrap_or(false)
+                {
+                    return Ok(Err(cli_agent_error(
+                        "cli:agent:start",
+                        "agent_start_failed",
+                        "agent process exited before becoming interactive",
+                    )));
+                }
                 std::thread::sleep(AGENT_START_POLL_INTERVAL);
                 continue;
             }
@@ -633,6 +643,17 @@ fn wait_for_named_agent(
         if let Some(outcome) = outcome {
             return Ok(outcome);
         }
+
+        if started_at.elapsed() >= Duration::from_millis(500)
+            && pane_shell_only(fallback_pane_id).unwrap_or(false)
+        {
+            return Ok(Err(cli_agent_error(
+                "cli:agent:start",
+                "agent_start_failed",
+                "agent process exited before becoming interactive",
+            )));
+        }
+
         std::thread::sleep(AGENT_START_POLL_INTERVAL);
     }
 }
@@ -647,6 +668,65 @@ fn pane_terminal_id(pane_id: &str) -> std::io::Result<Option<String>> {
     Ok(response["result"]["pane"]["terminal_id"]
         .as_str()
         .map(str::to_owned))
+}
+
+fn pane_shell_only(pane_id: &str) -> std::io::Result<bool> {
+    let response = super::send_request(&Request {
+        id: "cli:agent:start:process_info".into(),
+        method: Method::PaneProcessInfo(PaneProcessInfoParams {
+            pane_id: Some(pane_id.to_owned()),
+        }),
+    })?;
+    Ok(process_info_shows_shell_only(
+        &response["result"]["process_info"],
+    ))
+}
+
+#[cfg(unix)]
+fn process_info_shows_shell_only(process_info: &serde_json::Value) -> bool {
+    let Some(shell_pid) = process_info["shell_pid"].as_u64() else {
+        return false;
+    };
+    if process_info["foreground_process_group_id"].as_u64() != Some(shell_pid) {
+        return false;
+    }
+    let Some(processes) = process_info["foreground_processes"].as_array() else {
+        return false;
+    };
+    !processes.is_empty()
+        && processes.iter().all(|process| {
+            process["pid"].as_u64() == Some(shell_pid)
+                && (process["name"]
+                    .as_str()
+                    .is_some_and(crate::platform::is_pane_shell_process_name)
+                    || process["argv"]
+                        .as_array()
+                        .and_then(|argv| argv.first())
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(crate::platform::is_pane_shell_process_name))
+        })
+}
+
+#[cfg(not(unix))]
+fn process_info_shows_shell_only(process_info: &serde_json::Value) -> bool {
+    let Some(shell_pid) = process_info["shell_pid"].as_u64() else {
+        return false;
+    };
+    let Some(processes) = process_info["foreground_processes"].as_array() else {
+        return false;
+    };
+    !processes.is_empty()
+        && processes.iter().all(|process| {
+            process["pid"].as_u64() == Some(shell_pid)
+                && (process["name"]
+                    .as_str()
+                    .is_some_and(crate::platform::is_pane_shell_process_name)
+                    || process["argv"]
+                        .as_array()
+                        .and_then(|argv| argv.first())
+                        .and_then(serde_json::Value::as_str)
+                        .is_some_and(crate::platform::is_pane_shell_process_name))
+        })
 }
 
 fn pane_shell_is_initializing(pane_id: &str) -> std::io::Result<bool> {
