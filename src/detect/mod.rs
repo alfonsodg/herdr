@@ -65,10 +65,11 @@ pub enum Agent {
     Letta,
     Maki,
     Muse,
+    CommandCode,
 }
 
 impl Agent {
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 25] = [
         Self::Pi,
         Self::Claude,
         Self::Codex,
@@ -93,9 +94,10 @@ impl Agent {
         Self::Letta,
         Self::Maki,
         Self::Muse,
+        Self::CommandCode,
     ];
 
-    pub const SCREEN_MANIFEST_AGENTS: [Self; 22] = [
+    pub const SCREEN_MANIFEST_AGENTS: [Self; 23] = [
         Self::Pi,
         Self::Claude,
         Self::Codex,
@@ -118,6 +120,7 @@ impl Agent {
         Self::Letta,
         Self::Maki,
         Self::Muse,
+        Self::CommandCode,
     ];
 }
 
@@ -147,6 +150,7 @@ pub fn agent_label(agent: Agent) -> &'static str {
         Agent::Letta => "letta",
         Agent::Maki => "maki",
         Agent::Muse => "muse",
+        Agent::CommandCode => "command-code",
     }
 }
 
@@ -182,6 +186,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
         Agent::Letta => "letta",
         Agent::Maki => "maki",
         Agent::Muse => "muse",
+        Agent::CommandCode => "cmd",
     }
 }
 
@@ -223,6 +228,8 @@ fn lookup_agent(name: &str) -> Option<Agent> {
         "maki" => Some(Agent::Maki),
         "muse" | "musecode" | "muse code" | "muse-code" | "muse-cli" => Some(Agent::Muse),
         _ if is_muse_versioned_binary(name) => Some(Agent::Muse),
+        "command-code" | "commandcode" | "command code" | "cmdcode" => Some(Agent::CommandCode),
+        "cmd" if !cfg!(windows) => Some(Agent::CommandCode),
         _ => None,
     }
 }
@@ -725,7 +732,8 @@ fn agent_name_from_known_package_path(path: &str) -> Option<String> {
     }
 
     let components: Vec<String> = raw_components
-        .into_iter()
+        .iter()
+        .copied()
         .map(normalized_agent_lookup_name)
         .collect();
     for window in components.windows(5) {
@@ -740,6 +748,12 @@ fn agent_name_from_known_package_path(path: &str) -> Option<String> {
         if window == ["node_modules", "@letta-ai", "letta-code", "letta"] {
             return Some(agent_label(Agent::Letta).to_string());
         }
+    }
+    if raw_components
+        .iter()
+        .any(|c| c.eq_ignore_ascii_case(".commandcode") || c.eq_ignore_ascii_case("commandcode"))
+    {
+        return Some(agent_label(Agent::CommandCode).to_string());
     }
     None
 }
@@ -1014,6 +1028,12 @@ mod tests {
             identify_agent(r"C:\Users\user\muse-bin-0.2.1-R1215.1.exe"),
             Some(Agent::Muse)
         );
+        assert_eq!(identify_agent("command-code"), Some(Agent::CommandCode));
+        assert_eq!(identify_agent("commandcode"), Some(Agent::CommandCode));
+        assert_eq!(identify_agent("cmdcode"), Some(Agent::CommandCode));
+        if !cfg!(windows) {
+            assert_eq!(identify_agent("cmd"), Some(Agent::CommandCode));
+        }
     }
 
     #[test]
@@ -1042,6 +1062,8 @@ mod tests {
         assert_eq!(parse_agent_label("letta-code"), Some(Agent::Letta));
         assert_eq!(parse_agent_label("maki"), Some(Agent::Maki));
         assert_eq!(parse_agent_label("kilo-code"), Some(Agent::Kilo));
+        assert_eq!(parse_agent_label("command-code"), Some(Agent::CommandCode));
+        assert_eq!(parse_agent_label("commandcode"), Some(Agent::CommandCode));
     }
 
     #[test]
@@ -1087,6 +1109,7 @@ mod tests {
             (Agent::Letta, "letta"),
             (Agent::Maki, "maki"),
             (Agent::Muse, "muse"),
+            (Agent::CommandCode, "cmd"),
         ];
         assert_eq!(expected.len(), Agent::ALL.len());
         for (agent, executable) in expected {

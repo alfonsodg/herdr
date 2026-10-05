@@ -2057,6 +2057,11 @@ impl AppState {
     }
 
     fn handle_pane_died(&mut self, pane_id: PaneId) {
+        let pane_id = self
+            .pane_id_aliases
+            .get(&pane_id.raw())
+            .copied()
+            .unwrap_or(pane_id);
         self.pending_agent_notifications.remove(&pane_id);
         self.remove_plugin_pane_records([pane_id]);
         let ws_idx = self
@@ -2997,6 +3002,21 @@ mod tests {
         state.handle_pane_died(fake_id);
 
         assert_eq!(state.workspaces.len(), 1);
+        state.assert_invariants_for_test();
+    }
+
+    #[test]
+    fn pane_died_aliased_pane_resolves_and_cleans_up() {
+        let mut state = app_with_workspaces(&["test"]);
+        let actual_pane_id = *state.workspaces[0].panes.keys().next().unwrap();
+        let alias_raw = 8888;
+        let alias_pane_id = PaneId::from_raw(alias_raw);
+        state.pane_id_aliases.insert(alias_raw, actual_pane_id);
+
+        state.handle_pane_died(alias_pane_id);
+
+        assert!(state.workspaces.is_empty());
+        assert!(!state.pane_id_aliases.contains_key(&alias_raw));
         state.assert_invariants_for_test();
     }
     #[test]

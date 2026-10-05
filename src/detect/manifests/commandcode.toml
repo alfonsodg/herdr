@@ -1,0 +1,73 @@
+id = "command-code"
+version = "2026.10.05.1"
+min_engine_version = 2
+updated_at = "2026-10-05T00:00:00Z"
+aliases = ["commandcode", "cmd", "cmdcode"]
+
+[[rules]]
+id = "tool_approval_blocked"
+state = "blocked"
+priority = 900
+region = "bottom_non_empty_lines(8)"
+visible_blocker = true
+any = [
+  { contains = ["Allow once", "Allow always"] },
+  { contains = ["Do you want to run this command?", "y/n"] },
+  { contains = ["Allow this command?", "Yes", "No"] },
+  { contains = ["Approve tool execution?", "[y/N]"] },
+]
+
+[[rules]]
+id = "working_esc_interrupt"
+state = "working"
+priority = 850
+region = "bottom_non_empty_lines(8)"
+visible_working = true
+any = [
+  { contains = ["esc to interrupt"] },
+  { contains = ["esc to cancel"] },
+  { contains = ["Thinking..."] },
+  { line_regex = ['[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]'] },
+]
+not = [
+  { contains = ["Allow once", "Allow always"] },
+  { contains = ["Do you want to run this command?"] },
+]
+
+[[rules]]
+id = "osc_title_working"
+state = "working"
+priority = 800
+region = "osc_title"
+visible_working = true
+any = [
+  { contains = ["Thinking..."] },
+  { contains = ["Working..."] },
+  { regex = ['(?:^|\s)[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏](?:\s|$)'] },
+]
+
+[[rules]]
+id = "osc_title_idle"
+state = "idle"
+priority = 750
+region = "osc_title"
+visible_idle = true
+regex = ['(?i)(?:^|\s|\b)(?:command-code|cmd)(?:\s+idle|\s*$|\s*-\s*idle)']
+
+[[rules]]
+id = "idle_prompt"
+state = "idle"
+priority = 700
+region = "bottom_non_empty_lines(5)"
+visible_idle = true
+any = [
+  { line_regex = ['^\s*(?:cmd>|command-code>|[>❯])\s*$'] },
+  { line_regex = ['^\s*(?:cmd>|command-code>|[>❯])\s+\S'] },
+]
+not = [
+  { contains = ["esc to interrupt"] },
+  { contains = ["esc to cancel"] },
+  { contains = ["Thinking..."] },
+  { contains = ["Allow once", "Allow always"] },
+  { contains = ["Do you want to run this command?"] },
+]
