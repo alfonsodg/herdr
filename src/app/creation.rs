@@ -416,7 +416,9 @@ impl App {
 fn terminal_agent_session_info(
     terminal: &crate::terminal::TerminalState,
 ) -> Option<crate::api::schema::AgentSessionInfo> {
-    terminal.effective_agent_label()?;
+    if terminal.effective_agent_label().is_none() && terminal.managed_agent_kind().is_none() {
+        return None;
+    }
 
     if let Some(authority) = terminal.hook_authority.as_ref() {
         if let Some(session_ref) = authority.session_ref.as_ref() {
@@ -456,12 +458,12 @@ mod tests {
         });
 
         // Pane is a plain shell (no agent detected, no effective agent label)
-        assert!(terminal.effective_agent_label().is_none());
+        assert!(!terminal.is_agent_terminal());
         assert_eq!(terminal_agent_session_info(&terminal), None);
 
         // When agent is detected, session info is returned
         terminal.set_detected_state(Some(Agent::Claude), AgentState::Working);
-        assert!(terminal.effective_agent_label().is_some());
+        assert!(terminal.is_agent_terminal());
         let info = terminal_agent_session_info(&terminal).expect("session info should be present");
         assert_eq!(info.value, "claude-old-session");
     }
