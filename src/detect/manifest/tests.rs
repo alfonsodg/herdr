@@ -835,3 +835,39 @@ fn command_code_tool_approval_evaluates_to_blocked() {
     assert_eq!(explain.state, AgentState::Blocked);
     assert!(explain.visible_blocker);
 }
+
+#[test]
+fn kiro_live_prompt_idle_evaluates_to_idle() {
+    let screen =
+        "Previous response\nAll files updated.\n\n› ask a question or describe a task enter\n";
+    let explain = explain(Agent::Kiro, screen);
+    assert_eq!(explain.state, AgentState::Idle);
+    assert!(explain.visible_idle);
+    assert!(!explain.visible_working);
+    assert!(!explain.visible_blocker);
+}
+
+#[test]
+fn kiro_working_footer_evaluates_to_working() {
+    let screen = "Executing tool command...\n\nkiro is working\ntype to steer\nctrl+s to queue\n";
+    let explain = explain(Agent::Kiro, screen);
+    assert_eq!(explain.state, AgentState::Working);
+    assert!(explain.visible_working);
+    assert!(!explain.visible_blocker);
+}
+
+#[test]
+fn kiro_permission_prompt_yn_evaluates_to_blocked() {
+    let screen = "Tool execution requested: bash\nCommand: git push origin develop\nAllow execution? [y/n]\n";
+    let explain = explain(Agent::Kiro, screen);
+    assert_eq!(explain.state, AgentState::Blocked);
+    assert!(explain.visible_blocker);
+}
+
+#[test]
+fn kiro_permission_prompt_allow_deny_evaluates_to_blocked() {
+    let screen = "Tool execution requested\n> allow\n  deny\n  always allow\nesc to cancel\n";
+    let explain = explain(Agent::Kiro, screen);
+    assert_eq!(explain.state, AgentState::Blocked);
+    assert!(explain.visible_blocker);
+}
