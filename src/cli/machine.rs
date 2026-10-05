@@ -282,11 +282,21 @@ fn default_label(target: &str, session: &str) -> String {
     }
 }
 
-fn check_default_label(catalog: &EndpointCatalog, label: &str) -> Result<(), String> {
+fn check_machine_label(
+    catalog: &EndpointCatalog,
+    label: &str,
+    is_default: bool,
+) -> Result<(), String> {
     if label.len() > MAX_LABEL_BYTES {
-        return Err(format!(
-            "default machine name '{label}' is longer than {MAX_LABEL_BYTES} bytes; pass --label to choose a name"
-        ));
+        if is_default {
+            return Err(format!(
+                "default machine name '{label}' is longer than {MAX_LABEL_BYTES} bytes; pass --label to choose a name"
+            ));
+        } else {
+            return Err(format!(
+                "machine name '{label}' is longer than {MAX_LABEL_BYTES} bytes"
+            ));
+        }
     }
     if catalog.ssh.iter().any(|profile| profile.label == label) {
         return Err(format!(
@@ -294,6 +304,29 @@ fn check_default_label(catalog: &EndpointCatalog, label: &str) -> Result<(), Str
         ));
     }
     Ok(())
+}
+
+fn check_machine_target(
+    catalog: &EndpointCatalog,
+    target: &str,
+    session: &str,
+) -> Result<(), String> {
+    if let Some(existing) = catalog
+        .ssh
+        .iter()
+        .find(|profile| profile.target == target && profile.session == session)
+    {
+        return Err(format!(
+            "a machine for '{target}' with session '{session}' already exists as '{}'",
+            existing.label
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+fn check_default_label(catalog: &EndpointCatalog, label: &str) -> Result<(), String> {
+    check_machine_label(catalog, label, true)
 }
 
 fn add(args: &[String]) -> std::io::Result<i32> {
@@ -332,11 +365,13 @@ fn add(args: &[String]) -> std::io::Result<i32> {
     let label_is_default = label.is_none();
     let label = label.unwrap_or_else(|| default_label(&target, &session));
     let mut catalog = load_catalog()?;
-    if label_is_default {
-        if let Err(error) = check_default_label(&catalog, &label) {
-            eprintln!("error: {error}");
-            return Ok(2);
-        }
+    if let Err(error) = check_machine_label(&catalog, &label, label_is_default) {
+        eprintln!("error: {error}");
+        return Ok(2);
+    }
+    if let Err(error) = check_machine_target(&catalog, &target, &session) {
+        eprintln!("error: {error}");
+        return Ok(2);
     }
     match catalog.add_ssh(label.clone(), &target, session.clone()) {
         Ok(_) => {}
@@ -363,11 +398,13 @@ fn add(args: &[String]) -> std::io::Result<i32> {
             "remote prepared, but machine was not saved: {error}"
         ))
     })?;
-    if label_is_default {
-        if let Err(error) = check_default_label(&catalog, &label) {
-            eprintln!("error: {error}; machine was not saved");
-            return Ok(2);
-        }
+    if let Err(error) = check_machine_label(&catalog, &label, label_is_default) {
+        eprintln!("error: {error}; machine was not saved");
+        return Ok(2);
+    }
+    if let Err(error) = check_machine_target(&catalog, &target, &session) {
+        eprintln!("error: {error}; machine was not saved");
+        return Ok(2);
     }
     let id = match catalog.add_ssh(label, &target, &session) {
         Ok(id) => id,
@@ -653,6 +690,37 @@ mod tests {
         assert!(duplicate.contains("--label"), "{duplicate}");
         let long = check_default_label(&catalog, &"h".repeat(MAX_LABEL_BYTES + 1)).unwrap_err();
         assert!(long.contains("--label"), "{long}");
+    }
+
+    #[test]
+    fn custom_label_and_target_must_be_unique() {
+        let mut catalog = EndpointCatalog::default();
+        catalog.add_ssh("workbox", "user@host", "herdr").unwrap();
+
+        // Custom label colliding with existing label should fail
+        let duplicate_label = check_machine_label(&catalog, "workbox", false).unwrap_err();
+        assert!(
+            duplicate_label.contains("already exists"),
+            "{duplicate_label}"
+        );
+
+        // Custom label longer than max should fail
+        let long_label =
+            check_machine_label(&catalog, &"h".repeat(MAX_LABEL_BYTES + 1), false).unwrap_err();
+        assert!(long_label.contains("longer than"), "{long_label}");
+
+        // Duplicate target and session should fail
+        let duplicate_target = check_machine_target(&catalog, "user@host", "herdr").unwrap_err();
+        assert!(
+            duplicate_target.contains("already exists"),
+            "{duplicate_target}"
+        );
+
+        // Different session on same target should be allowed
+        assert!(check_machine_target(&catalog, "user@host", "other").is_ok());
+
+        // Different target should be allowed
+        assert!(check_machine_target(&catalog, "other@host", "herdr").is_ok());
     }
 
     #[test]
