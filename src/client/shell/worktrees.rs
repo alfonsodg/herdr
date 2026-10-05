@@ -48,6 +48,7 @@ impl ClientShellState {
         key: &crate::input::TerminalKey,
         outcome: &mut ClientShellInput,
     ) -> bool {
+        let text_character = crate::input::keybind_help_text_char(key);
         let (code, modifiers) = crate::config::normalize_key_combo((key.code, key.modifiers));
         match self.overlay.as_ref() {
             Some(ClientShellOverlay::WorktreeCreate(_)) => {
@@ -132,7 +133,11 @@ impl ClientShellState {
                         });
                         outcome.repaint = true;
                     }
-                    KeyCode::Char('/') if !opening && !search_focused => {
+                    _ if (code == KeyCode::Char('/') && modifiers.is_empty()
+                        || text_character == Some('/'))
+                        && !opening
+                        && !search_focused =>
+                    {
                         if let Some(ClientShellOverlay::WorktreeOpen(open)) = self.overlay.as_mut()
                         {
                             open.search_focused = true;
