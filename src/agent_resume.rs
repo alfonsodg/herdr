@@ -307,6 +307,9 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
                 ]
             }
         }
+        ("herdr:muse", "muse", AgentSessionRefKind::Id) => {
+            vec!["muse".into(), "--resume".into(), session_ref.value.clone()]
+        }
         _ => return None,
     };
 
@@ -345,6 +348,7 @@ pub(crate) fn is_official_agent_source(source: &str, agent: &str) -> bool {
             | ("herdr:antigravity_cli", "agy")
             | ("herdr:grok", "grok")
             | ("herdr:letta", "letta")
+            | ("herdr:muse", "muse")
     )
 }
 
@@ -651,6 +655,16 @@ mod tests {
             .argv,
             vec!["letta", "--conversation", "default", "--agent", "agent-123"]
         );
+        assert_eq!(
+            plan(
+                "herdr:muse",
+                "muse",
+                &AgentSessionRef::id("muse-session").unwrap()
+            )
+            .unwrap()
+            .argv,
+            vec!["muse", "--resume", "muse-session"]
+        );
         assert!(plan(
             "herdr:letta",
             "letta",
@@ -863,10 +877,17 @@ mod tests {
         let kilo_session = absolute_test_path("kilo-session");
         let copilot_session = absolute_test_path("copilot-session");
         let devin_session = absolute_test_path("devin-session");
+        let muse_session = absolute_test_path("muse-session");
         assert!(plan(
             "herdr:hermes",
             "hermes",
             &AgentSessionRef::path(&hermes_session).unwrap()
+        )
+        .is_none());
+        assert!(plan(
+            "herdr:muse",
+            "muse",
+            &AgentSessionRef::path(&muse_session).unwrap()
         )
         .is_none());
         assert!(plan(

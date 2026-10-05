@@ -1,8 +1,8 @@
 id = "muse"
-version = "2026.08.26.1"
+version = "2026.10.05.1"
 min_engine_version = 2
-updated_at = "2026-08-26T00:00:00Z"
-aliases = ["muse-code", "muse-cli"]
+updated_at = "2026-10-05T00:00:00Z"
+aliases = ["muse", "musecode", "muse-code", "muse-cli"]
 
 # Evidence: live bottom-buffer captures from Muse Code 0.2.1 in Herdr, using a local
 # deterministic Responses provider so each UI state could be held and inspected.
@@ -91,8 +91,8 @@ priority = 700
 region = "bottom_non_empty_lines(5)"
 visible_idle = true
 any = [
-  { line_regex = ['^\s*⟩\s*$'] },
-  { line_regex = ['^\s*⟩\s+\S'] },
+  { line_regex = ['^\s*[⟩❯>]\s*$'] },
+  { line_regex = ['^\s*[⟩❯>]\s+\S'] },
 ]
 not = [
   { contains = ["esc to interrupt"] },
@@ -107,7 +107,12 @@ not = [
 id = "idle_status_fallback"
 state = "idle"
 priority = 500
-region = "bottom_non_empty_lines(3)"
+region = "bottom_non_empty_lines(4)"
 visible_idle = true
-line_regex = ['^\s*\S+ · (none|minimal|low|medium|high|xhigh|ultra) · ']
+any = [
+  { line_regex = ['^\s*\S+ · (none|minimal|low|medium|high|xhigh|ultra) · '] },
+  { line_regex = ['^\s*\S+ · \S+ · \S+'] },
+  { line_regex = ['^\s*\S+ · \S+'] },
+]
 not = [{ contains = ["esc to interrupt"] }]
+
