@@ -1472,3 +1472,62 @@ fn agent_wait_ignores_other_panes_and_errors_when_its_pane_closes() {
 
     cleanup_spawned_herdr(herdr, base);
 }
+
+#[test]
+fn agent_start_fails_fast_on_immediate_process_exit() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let base = unique_test_dir();
+    let config_home = base.join("config");
+    let runtime_dir = base.join("runtime");
+    let socket_path = runtime_dir.join("herdr.sock");
+    let bin = base.join("bin");
+    fs::create_dir_all(&bin).unwrap();
+    let fake_pi = bin.join("pi");
+    fs::write(&fake_pi, "#!/bin/sh\nexit 1\n").unwrap();
+    fs::set_permissions(&fake_pi, fs::Permissions::from_mode(0o755)).unwrap();
+
+    let herdr = spawn_herdr_with_path(&config_home, &runtime_dir, &socket_path, Some(&bin));
+    wait_for_socket(&socket_path, Duration::from_secs(5));
+    let created = run_cli_json(
+        &socket_path,
+        &["workspace", "create", "--cwd", base.to_str().unwrap()],
+    );
+    let pane_id = created["result"]["root_pane"]["pane_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let started_at = Instant::now();
+    let started = run_cli(
+        &socket_path,
+        &[
+            "agent",
+            "start",
+            "worker",
+            "--kind",
+            "pi",
+            "--pane",
+            &pane_id,
+            "--timeout",
+            "10000",
+            "--",
+            "--invalid-flag",
+        ],
+    );
+    assert_eq!(started.status.code(), Some(1));
+    let elapsed = started_at.elapsed();
+    assert!(
+        elapsed < Duration::from_secs(2),
+        "agent start took {:?}, expected < 2s",
+        elapsed
+    );
+    let error: serde_json::Value = serde_json::from_slice(&started.stderr).unwrap();
+    assert_eq!(error["error"]["code"], "agent_start_failed");
+    assert_eq!(
+        error["error"]["message"],
+        "agent process exited before becoming interactive"
+    );
+
+    cleanup_spawned_herdr(herdr, base);
+}
