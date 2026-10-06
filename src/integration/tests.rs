@@ -4792,3 +4792,410 @@ fn grok_dir_honors_grok_home_after_config_dir_seam() {
     clear_integration_path_env();
     let _ = fs::remove_dir_all(base);
 }
+
+#[test]
+fn install_and_uninstall_muse_preserve_unrelated_settings_and_hooks() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let muse_dir = base.join("muse");
+    fs::create_dir_all(&muse_dir).unwrap();
+    let settings_path = muse_dir.join("settings.json");
+    fs::write(
+        &settings_path,
+        r#"{"theme":"dark","hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo user"}]}]}}"#,
+    )
+    .unwrap();
+    std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &muse_dir);
+
+    let installed = install_muse().unwrap();
+    assert_eq!(
+        installed.hook_path,
+        muse_dir.join("hooks").join(MUSE_HOOK_INSTALL_NAME)
+    );
+    assert!(installed.hook_path.is_file());
+
+    let first_install = fs::read_to_string(&settings_path).unwrap();
+    let settings: Value = serde_json::from_str(&first_install).unwrap();
+    let entries = settings["hooks"]["SessionStart"].as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["hooks"][0]["command"], "echo user");
+    assert_eq!(settings["theme"], "dark");
+
+    // Idempotent reinstall
+    install_muse().unwrap();
+    assert_eq!(fs::read_to_string(&settings_path).unwrap(), first_install);
+
+    let result = uninstall_muse().unwrap();
+    assert!(result.removed_hook_file);
+    assert!(result.updated_settings);
+    assert!(!installed.hook_path.exists());
+
+    let settings: Value =
+        serde_json::from_str(&fs::read_to_string(&settings_path).unwrap()).unwrap();
+    assert_eq!(settings["theme"], "dark");
+    let remaining = settings["hooks"]["SessionStart"].as_array().unwrap();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0]["hooks"][0]["command"], "echo user");
+
+    std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_muse_errors_when_config_dir_missing() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let missing_dir = base.join("missing-muse");
+    std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &missing_dir);
+
+    let err = install_muse().unwrap_err().to_string();
+    assert!(err.contains("muse config directory not found"));
+
+    std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[cfg(unix)]
+#[test]
+fn muse_session_hook_is_silent_and_reports_session_id() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::{Command, Stdio};
+
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let muse_dir = base.join("muse");
+    fs::create_dir_all(&muse_dir).unwrap();
+    std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &muse_dir);
+
+    let installed = install_muse().unwrap();
+
+    let capture = base.join("args.txt");
+    let fake_herdr = base.join("herdr");
+    fs::write(
+        &fake_herdr,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\n",
+            capture.display()
+        ),
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&fake_herdr).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&fake_herdr, permissions).unwrap();
+
+    let mut child = Command::new("sh")
+        .arg(&installed.hook_path)
+        .arg("session")
+        .env("HERDR_ENV", "1")
+        .env("HERDR_PANE_ID", "w1:p3")
+        .env("HERDR_SOCKET_PATH", "/tmp/herdr.sock")
+        .env("HERDR_BIN_PATH", &fake_herdr)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"hook_event_name":"SessionStart","session_id":"muse-sess-123","source":"startup"}"#)
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+
+    let args = fs::read_to_string(capture).unwrap();
+    assert!(args.contains("report-agent-session w1:p3"));
+    assert!(args.contains("--source herdr:muse --agent muse"));
+    assert!(args.contains("--agent-session-id muse-sess-123"));
+    assert!(args.contains("--session-start-source startup"));
+
+    std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_and_uninstall_kiro() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let kiro_dir = base.join("kiro");
+    fs::create_dir_all(&kiro_dir).unwrap();
+    std::env::set_var(KIRO_CONFIG_DIR_ENV_VAR, &kiro_dir);
+
+    let installed = install_kiro().unwrap();
+    assert_eq!(
+        installed.hook_path,
+        kiro_dir.join("hooks").join(KIRO_HOOK_INSTALL_NAME)
+    );
+    assert_eq!(
+        installed.config_path,
+        kiro_dir.join("hooks").join(KIRO_HOOK_CONFIG_INSTALL_NAME)
+    );
+    assert!(installed.hook_path.is_file());
+    assert!(installed.config_path.is_file());
+
+    let config: Value =
+        serde_json::from_str(&fs::read_to_string(&installed.config_path).unwrap()).unwrap();
+    assert_eq!(config["hooks"][0]["trigger"], "SessionStart");
+
+    // Idempotent reinstall
+    install_kiro().unwrap();
+    assert!(installed.hook_path.is_file());
+    assert!(installed.config_path.is_file());
+
+    let result = uninstall_kiro().unwrap();
+    assert!(result.removed_hook_file);
+    assert!(result.removed_config_file);
+    assert!(!installed.hook_path.exists());
+    assert!(!installed.config_path.exists());
+
+    std::env::remove_var(KIRO_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_kiro_errors_when_config_dir_missing() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let missing_dir = base.join("missing-kiro");
+    std::env::set_var(KIRO_CONFIG_DIR_ENV_VAR, &missing_dir);
+
+    let err = install_kiro().unwrap_err().to_string();
+    assert!(err.contains("kiro config directory not found"));
+
+    std::env::remove_var(KIRO_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[cfg(unix)]
+#[test]
+fn kiro_session_hook_is_silent_and_reports_session_id() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::{Command, Stdio};
+
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let kiro_dir = base.join("kiro");
+    fs::create_dir_all(&kiro_dir).unwrap();
+    std::env::set_var(KIRO_CONFIG_DIR_ENV_VAR, &kiro_dir);
+
+    let installed = install_kiro().unwrap();
+
+    let capture = base.join("args.txt");
+    let fake_herdr = base.join("herdr");
+    fs::write(
+        &fake_herdr,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\n",
+            capture.display()
+        ),
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&fake_herdr).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&fake_herdr, permissions).unwrap();
+
+    let mut child = Command::new("sh")
+        .arg(&installed.hook_path)
+        .arg("session")
+        .env("HERDR_ENV", "1")
+        .env("HERDR_PANE_ID", "w1:p4")
+        .env("HERDR_SOCKET_PATH", "/tmp/herdr.sock")
+        .env("HERDR_BIN_PATH", &fake_herdr)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(br#"{"hook_event_name":"SessionStart","session_id":"kiro-sess-456"}"#)
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+
+    let args = fs::read_to_string(capture).unwrap();
+    assert!(args.contains("report-agent-session w1:p4"));
+    assert!(args.contains("--source herdr:kiro --agent kiro-cli"));
+    assert!(args.contains("--agent-session-id kiro-sess-456"));
+
+    std::env::remove_var(KIRO_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_and_uninstall_commandcode_preserve_unrelated_settings_and_hooks() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let cmd_dir = base.join("commandcode");
+    fs::create_dir_all(&cmd_dir).unwrap();
+    let settings_path = cmd_dir.join("settings.json");
+    fs::write(
+        &settings_path,
+        r#"{"model":"fast","hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo cmd"}]}]}}"#,
+    )
+    .unwrap();
+    std::env::set_var(COMMANDCODE_CONFIG_DIR_ENV_VAR, &cmd_dir);
+
+    let installed = install_commandcode().unwrap();
+    assert_eq!(
+        installed.hook_path,
+        cmd_dir.join("hooks").join(COMMANDCODE_HOOK_INSTALL_NAME)
+    );
+    assert!(installed.hook_path.is_file());
+
+    let first_install = fs::read_to_string(&settings_path).unwrap();
+    let settings: Value = serde_json::from_str(&first_install).unwrap();
+    let entries = settings["hooks"]["SessionStart"].as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["hooks"][0]["command"], "echo cmd");
+    assert_eq!(settings["model"], "fast");
+
+    // Idempotent reinstall
+    install_commandcode().unwrap();
+    assert_eq!(fs::read_to_string(&settings_path).unwrap(), first_install);
+
+    let result = uninstall_commandcode().unwrap();
+    assert!(result.removed_hook_file);
+    assert!(result.updated_settings);
+    assert!(!installed.hook_path.exists());
+
+    let settings: Value =
+        serde_json::from_str(&fs::read_to_string(&settings_path).unwrap()).unwrap();
+    assert_eq!(settings["model"], "fast");
+    let remaining = settings["hooks"]["SessionStart"].as_array().unwrap();
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0]["hooks"][0]["command"], "echo cmd");
+
+    std::env::remove_var(COMMANDCODE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_commandcode_errors_when_config_dir_missing() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let missing_dir = base.join("missing-commandcode");
+    std::env::set_var(COMMANDCODE_CONFIG_DIR_ENV_VAR, &missing_dir);
+
+    let err = install_commandcode().unwrap_err().to_string();
+    assert!(err.contains("command-code config directory not found"));
+
+    std::env::remove_var(COMMANDCODE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[cfg(unix)]
+#[test]
+fn commandcode_session_hook_is_silent_and_reports_session_id() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    use std::process::{Command, Stdio};
+
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let cmd_dir = base.join("commandcode");
+    fs::create_dir_all(&cmd_dir).unwrap();
+    std::env::set_var(COMMANDCODE_CONFIG_DIR_ENV_VAR, &cmd_dir);
+
+    let installed = install_commandcode().unwrap();
+
+    let capture = base.join("args.txt");
+    let fake_herdr = base.join("herdr");
+    fs::write(
+        &fake_herdr,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" > '{}'\n",
+            capture.display()
+        ),
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&fake_herdr).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&fake_herdr, permissions).unwrap();
+
+    let mut child = Command::new("sh")
+        .arg(&installed.hook_path)
+        .arg("session")
+        .env("HERDR_ENV", "1")
+        .env("HERDR_PANE_ID", "w1:p5")
+        .env("HERDR_SOCKET_PATH", "/tmp/herdr.sock")
+        .env("HERDR_BIN_PATH", &fake_herdr)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(
+            br#"{"hook_event_name":"SessionStart","session_id":"cmd-sess-789","source":"resume"}"#,
+        )
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stdout.is_empty());
+    assert!(output.stderr.is_empty());
+
+    let args = fs::read_to_string(capture).unwrap();
+    assert!(args.contains("report-agent-session w1:p5"));
+    assert!(args.contains("--source herdr:command-code --agent command-code"));
+    assert!(args.contains("--agent-session-id cmd-sess-789"));
+    assert!(args.contains("--session-start-source resume"));
+
+    std::env::remove_var(COMMANDCODE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn experimental_integration_statuses_reports_muse_kiro_commandcode() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let muse_dir = base.join("muse");
+    let kiro_dir = base.join("kiro");
+    let cmd_dir = base.join("commandcode");
+    fs::create_dir_all(&muse_dir).unwrap();
+    fs::create_dir_all(&kiro_dir).unwrap();
+    fs::create_dir_all(&cmd_dir).unwrap();
+
+    std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &muse_dir);
+    std::env::set_var(KIRO_CONFIG_DIR_ENV_VAR, &kiro_dir);
+    std::env::set_var(COMMANDCODE_CONFIG_DIR_ENV_VAR, &cmd_dir);
+
+    // Initially NotInstalled
+    let statuses = experimental_integration_statuses();
+    let muse = statuses.iter().find(|s| s.label == "muse").unwrap();
+    let kiro = statuses.iter().find(|s| s.label == "kiro").unwrap();
+    let cmd = statuses.iter().find(|s| s.label == "command-code").unwrap();
+    assert_eq!(muse.state, IntegrationStatusKind::NotInstalled);
+    assert_eq!(kiro.state, IntegrationStatusKind::NotInstalled);
+    assert_eq!(cmd.state, IntegrationStatusKind::NotInstalled);
+
+    // Install them
+    install_muse().unwrap();
+    install_kiro().unwrap();
+    install_commandcode().unwrap();
+
+    let statuses = experimental_integration_statuses();
+    let muse = statuses.iter().find(|s| s.label == "muse").unwrap();
+    let kiro = statuses.iter().find(|s| s.label == "kiro").unwrap();
+    let cmd = statuses.iter().find(|s| s.label == "command-code").unwrap();
+    assert_eq!(muse.state, IntegrationStatusKind::Current);
+    assert_eq!(kiro.state, IntegrationStatusKind::Current);
+    assert_eq!(cmd.state, IntegrationStatusKind::Current);
+
+    std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
+    std::env::remove_var(KIRO_CONFIG_DIR_ENV_VAR);
+    std::env::remove_var(COMMANDCODE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}

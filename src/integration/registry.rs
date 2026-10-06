@@ -515,6 +515,154 @@ pub(crate) fn experimental_letta_integration_status() -> Option<super::Experimen
     })
 }
 
+fn muse_settings_hook_is_valid(hook_path: &Path) -> bool {
+    let Some(dir) = hook_path.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let settings_path = dir.join("settings.json");
+    fs::read_to_string(settings_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .and_then(|settings| {
+            settings
+                .get("hooks")?
+                .get("SessionStart")?
+                .as_array()
+                .cloned()
+        })
+        .is_some_and(|entries| {
+            let command = super::command::hook_command(hook_path, Some("session"));
+            entries.iter().any(|entry| {
+                entry
+                    .get("hooks")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|hooks| {
+                        hooks.iter().any(|h| {
+                            h.get("type").and_then(serde_json::Value::as_str) == Some("command")
+                                && h.get("command").and_then(serde_json::Value::as_str)
+                                    == Some(command.as_str())
+                        })
+                    })
+            })
+        })
+}
+
+pub(crate) fn experimental_muse_integration_status() -> Option<super::ExperimentalIntegrationStatus>
+{
+    let path = muse_dir()
+        .ok()?
+        .join("hooks")
+        .join(super::MUSE_HOOK_INSTALL_NAME);
+    let (mut state, installed_version) =
+        integration_state_for_path(&path, super::MUSE_INTEGRATION_VERSION);
+    if state == super::IntegrationStatusKind::Current && !muse_settings_hook_is_valid(&path) {
+        state = super::IntegrationStatusKind::Outdated;
+    }
+    Some(super::ExperimentalIntegrationStatus {
+        label: "muse",
+        path,
+        state,
+        installed_version,
+        expected_version: super::MUSE_INTEGRATION_VERSION,
+    })
+}
+
+fn kiro_hook_config_is_valid(hook_path: &Path) -> bool {
+    let Some(hooks_dir) = hook_path.parent() else {
+        return false;
+    };
+    let config_path = hooks_dir.join(super::KIRO_HOOK_CONFIG_INSTALL_NAME);
+    fs::read_to_string(config_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .is_some_and(|config| config == super::targets::kiro_hook_config(hook_path))
+}
+
+pub(crate) fn experimental_kiro_integration_status() -> Option<super::ExperimentalIntegrationStatus>
+{
+    let path = kiro_dir()
+        .ok()?
+        .join("hooks")
+        .join(super::KIRO_HOOK_INSTALL_NAME);
+    let (mut state, installed_version) =
+        integration_state_for_path(&path, super::KIRO_INTEGRATION_VERSION);
+    if state == super::IntegrationStatusKind::Current && !kiro_hook_config_is_valid(&path) {
+        state = super::IntegrationStatusKind::Outdated;
+    }
+    Some(super::ExperimentalIntegrationStatus {
+        label: "kiro",
+        path,
+        state,
+        installed_version,
+        expected_version: super::KIRO_INTEGRATION_VERSION,
+    })
+}
+
+fn commandcode_settings_hook_is_valid(hook_path: &Path) -> bool {
+    let Some(dir) = hook_path.parent().and_then(Path::parent) else {
+        return false;
+    };
+    let settings_path = dir.join("settings.json");
+    fs::read_to_string(settings_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
+        .and_then(|settings| {
+            settings
+                .get("hooks")?
+                .get("SessionStart")?
+                .as_array()
+                .cloned()
+        })
+        .is_some_and(|entries| {
+            let command = super::command::hook_command(hook_path, Some("session"));
+            entries.iter().any(|entry| {
+                entry
+                    .get("hooks")
+                    .and_then(serde_json::Value::as_array)
+                    .is_some_and(|hooks| {
+                        hooks.iter().any(|h| {
+                            h.get("type").and_then(serde_json::Value::as_str) == Some("command")
+                                && h.get("command").and_then(serde_json::Value::as_str)
+                                    == Some(command.as_str())
+                        })
+                    })
+            })
+        })
+}
+
+pub(crate) fn experimental_command_code_integration_status(
+) -> Option<super::ExperimentalIntegrationStatus> {
+    let path = commandcode_dir()
+        .ok()?
+        .join("hooks")
+        .join(super::COMMANDCODE_HOOK_INSTALL_NAME);
+    let (mut state, installed_version) =
+        integration_state_for_path(&path, super::COMMANDCODE_INTEGRATION_VERSION);
+    if state == super::IntegrationStatusKind::Current && !commandcode_settings_hook_is_valid(&path)
+    {
+        state = super::IntegrationStatusKind::Outdated;
+    }
+    Some(super::ExperimentalIntegrationStatus {
+        label: "command-code",
+        path,
+        state,
+        installed_version,
+        expected_version: super::COMMANDCODE_INTEGRATION_VERSION,
+    })
+}
+
+pub(crate) fn experimental_integration_statuses() -> Vec<super::ExperimentalIntegrationStatus> {
+    [
+        experimental_letta_integration_status(),
+        experimental_muse_integration_status(),
+        experimental_kiro_integration_status(),
+        experimental_command_code_integration_status(),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
 pub(crate) fn parse_integration_version(content: &str) -> Option<u32> {
     content.lines().find_map(|line| {
         let marker_line = line
