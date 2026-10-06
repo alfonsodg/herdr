@@ -437,8 +437,13 @@ fn wrapped_agent_name_from_runtime_argv(runtime: &str, argv: Option<&[String]>) 
         name if is_python_runtime(name) => hermes_installer_agent_name(argv)
             .or_else(|| script_arg_agent_name(argv, &["-c"], &["-m"])),
         "sh" | "bash" | "zsh" | "fish" => script_arg_agent_name(argv, &["-c"], &[]),
-        "cmd" if cfg!(windows) => windows_cmd_arg_agent_name(argv),
-        "cmd" if !cfg!(windows) => Some(agent_label(Agent::CommandCode).to_string()),
+        "cmd" => windows_cmd_arg_agent_name(argv).or_else(|| {
+            if !cfg!(windows) {
+                Some(agent_label(Agent::CommandCode).to_string())
+            } else {
+                None
+            }
+        }),
         "powershell" | "pwsh" => powershell_arg_agent_name(argv),
         "tmux" => None,
         _ => None,
