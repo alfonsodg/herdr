@@ -1820,8 +1820,14 @@ pub(crate) fn install_muse() -> io::Result<MuseInstallPaths> {
             ))
         })?
     } else {
-        json!({})
+        json!({"schema_version": 1})
     };
+
+    if settings.get("schema_version").is_none() {
+        if let Some(obj) = settings.as_object_mut() {
+            obj.insert("schema_version".to_string(), json!(1));
+        }
+    }
 
     let hooks = ensure_hooks_object(
         &mut settings,
@@ -1857,6 +1863,13 @@ pub(crate) fn uninstall_muse() -> io::Result<MuseUninstallResult> {
     if settings_path.is_file() {
         let content = fs::read_to_string(&settings_path)?;
         if let Ok(mut settings) = serde_json::from_str::<Value>(&content) {
+            let mut modified = false;
+            if settings.get("schema_version").is_none() {
+                if let Some(obj) = settings.as_object_mut() {
+                    obj.insert("schema_version".to_string(), json!(1));
+                    modified = true;
+                }
+            }
             if let Ok(Some(hooks)) = hooks_object_if_present(
                 &mut settings,
                 &settings_path,
@@ -1864,9 +1877,12 @@ pub(crate) fn uninstall_muse() -> io::Result<MuseUninstallResult> {
                 "muse settings hooks",
             ) {
                 if remove_hook_commands(hooks, "SessionStart", &hook_path, Some("session"))? {
-                    fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
-                    updated_settings = true;
+                    modified = true;
                 }
+            }
+            if modified {
+                fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
+                updated_settings = true;
             }
         }
     }

@@ -4802,7 +4802,7 @@ fn install_and_uninstall_muse_preserve_unrelated_settings_and_hooks() {
     let settings_path = muse_dir.join("settings.json");
     fs::write(
         &settings_path,
-        r#"{"theme":"dark","hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo user"}]}]}}"#,
+        r#"{"schema_version":1,"theme":"dark","hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"echo user"}]}]}}"#,
     )
     .unwrap();
     std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &muse_dir);
@@ -4816,6 +4816,7 @@ fn install_and_uninstall_muse_preserve_unrelated_settings_and_hooks() {
 
     let first_install = fs::read_to_string(&settings_path).unwrap();
     let settings: Value = serde_json::from_str(&first_install).unwrap();
+    assert_eq!(settings["schema_version"], 1);
     let entries = settings["hooks"]["SessionStart"].as_array().unwrap();
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[0]["hooks"][0]["command"], "echo user");
@@ -4832,6 +4833,7 @@ fn install_and_uninstall_muse_preserve_unrelated_settings_and_hooks() {
 
     let settings: Value =
         serde_json::from_str(&fs::read_to_string(&settings_path).unwrap()).unwrap();
+    assert_eq!(settings["schema_version"], 1);
     assert_eq!(settings["theme"], "dark");
     let remaining = settings["hooks"]["SessionStart"].as_array().unwrap();
     assert_eq!(remaining.len(), 1);
@@ -4850,6 +4852,23 @@ fn install_muse_errors_when_config_dir_missing() {
 
     let err = install_muse().unwrap_err().to_string();
     assert!(err.contains("muse config directory not found"));
+
+    std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
+    let _ = fs::remove_dir_all(base);
+}
+
+#[test]
+fn install_muse_generates_schema_version_when_settings_is_new() {
+    let _lock = integration_env_lock();
+    let base = unique_base();
+    let muse_dir = base.join("muse");
+    fs::create_dir_all(&muse_dir).unwrap();
+    std::env::set_var(MUSE_CONFIG_DIR_ENV_VAR, &muse_dir);
+
+    let installed = install_muse().unwrap();
+    let settings: Value =
+        serde_json::from_str(&fs::read_to_string(&installed.settings_path).unwrap()).unwrap();
+    assert_eq!(settings["schema_version"], 1);
 
     std::env::remove_var(MUSE_CONFIG_DIR_ENV_VAR);
     let _ = fs::remove_dir_all(base);
