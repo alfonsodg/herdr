@@ -291,3 +291,45 @@ pub(crate) struct AntigravityCliUninstallResult {
     pub removed_hook_file: bool,
     pub updated_hooks: bool,
 }
+
+#[derive(Debug)]
+pub(crate) struct MuseInstallPaths {
+    pub hook_path: PathBuf,
+    pub settings_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct MuseUninstallResult {
+    pub hook_path: PathBuf,
+    pub settings_path: PathBuf,
+    pub removed_hook_file: bool,
+    pub updated_settings: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct KiroInstallPaths {
+    pub hook_path: PathBuf,
+    pub config_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct KiroUninstallResult {
+    pub hook_path: PathBuf,
+    pub config_path: PathBuf,
+    pub removed_hook_file: bool,
+    pub removed_config_file: bool,
+}
+
+#[derive(Debug)]
+pub(crate) struct CommandCodeInstallPaths {
+    pub hook_path: PathBuf,
+    pub settings_path: PathBuf,
+}
+
+#[derive(Debug)]
+pub(crate) struct CommandCodeUninstallResult {
+    pub hook_path: PathBuf,
+    pub settings_path: PathBuf,
+    pub removed_hook_file: bool,
+    pub updated_settings: bool,
+}

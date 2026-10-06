@@ -54,7 +54,7 @@ These agents report their own state to Herdr. There is nothing to install; run t
   <li><a href="https://github.com/PrimeIntellect-ai/prime-agent"><span class="agent-logo" style={{ '--logo': "url('/assets/agent-icons/prime-agent.svg')" }} aria-hidden="true"></span>Prime Agent</a></li>
 </ul>
 
-An agent that also reports its resume command comes back in the same session after a Herdr server restart.
+An agent that also reports its resume command comes back in the same session after a Herdr server restart. Managed integrations for agents including Muse Code, Command Code, and Kiro CLI report active session IDs so panes can resume accurately. Plugin-side transcript reading (for plugins such as Telegram Agents or Annotate) remains distinct and requires separate plugin adapters to read conversation histories.
 
 If you build a coding agent, [Add Herdr support to your agent](/docs/add-herdr-support/) shows how to join this list. It takes a few calls to Herdr's CLI or socket, and no change to Herdr.
 

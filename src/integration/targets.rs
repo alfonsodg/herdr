@@ -21,9 +21,10 @@ use super::config_edit::{
 };
 use super::config_file::{check_config_targets, write_config};
 use super::env::{
-    antigravity_cli_dir, claude_dir, codex_dir, copilot_dir, cursor_dir, devin_dir, droid_dir,
-    grok_dir, hermes_dir, hermes_plugin_dir, kilo_dir, kimi_dir, letta_dir, mastracode_dir,
-    omp_extension_dir, opencode_dir, opencode_state_dir, pi_extension_dir, qodercli_dir, qwen_dir,
+    antigravity_cli_dir, claude_dir, codex_dir, commandcode_dir, copilot_dir, cursor_dir,
+    devin_dir, droid_dir, grok_dir, hermes_dir, hermes_plugin_dir, kilo_dir, kimi_dir, kiro_dir,
+    letta_dir, mastracode_dir, muse_dir, omp_extension_dir, opencode_dir, opencode_state_dir,
+    pi_extension_dir, qodercli_dir, qwen_dir,
 };
 use super::file_ops::{
     make_executable, remove_dir_all_if_exists, remove_file_if_exists, remove_legacy_bash_hook_file,
@@ -34,19 +35,22 @@ use super::opencode_config::{
 };
 use super::types::{
     AntigravityCliInstallPaths, AntigravityCliUninstallResult, ClaudeInstallPaths,
-    ClaudeUninstallResult, CodexInstallPaths, CodexUninstallResult, CopilotInstallPaths,
-    CopilotUninstallResult, CursorInstallPaths, CursorUninstallResult, DevinInstallPaths,
-    DevinUninstallResult, DroidInstallPaths, DroidUninstallResult, GrokInstallPaths,
-    GrokUninstallResult, HermesInstallPaths, HermesUninstallResult, KiloInstallPaths,
-    KiloUninstallResult, KimiInstallPaths, KimiUninstallResult, LettaInstallPaths,
-    LettaUninstallResult, MastracodeInstallPaths, MastracodeUninstallResult, OmpInstallPaths,
-    OmpUninstallResult, OpenCodeInstallPaths, OpenCodeUninstallResult, PiUninstallResult,
-    QodercliInstallPaths, QodercliUninstallResult, QwenInstallPaths, QwenUninstallResult,
+    ClaudeUninstallResult, CodexInstallPaths, CodexUninstallResult, CommandCodeInstallPaths,
+    CommandCodeUninstallResult, CopilotInstallPaths, CopilotUninstallResult, CursorInstallPaths,
+    CursorUninstallResult, DevinInstallPaths, DevinUninstallResult, DroidInstallPaths,
+    DroidUninstallResult, GrokInstallPaths, GrokUninstallResult, HermesInstallPaths,
+    HermesUninstallResult, KiloInstallPaths, KiloUninstallResult, KimiInstallPaths,
+    KimiUninstallResult, KiroInstallPaths, KiroUninstallResult, LettaInstallPaths,
+    LettaUninstallResult, MastracodeInstallPaths, MastracodeUninstallResult, MuseInstallPaths,
+    MuseUninstallResult, OmpInstallPaths, OmpUninstallResult, OpenCodeInstallPaths,
+    OpenCodeUninstallResult, PiUninstallResult, QodercliInstallPaths, QodercliUninstallResult,
+    QwenInstallPaths, QwenUninstallResult,
 };
 use super::{
     ANTIGRAVITY_CLI_HOOK_ASSET, ANTIGRAVITY_CLI_HOOK_BLOCK_NAME, ANTIGRAVITY_CLI_HOOK_EVENTS,
     ANTIGRAVITY_CLI_HOOK_INSTALL_NAME, ANTIGRAVITY_CLI_HOOK_TIMEOUT_SEC, CLAUDE_HOOK_ASSET,
-    CLAUDE_HOOK_INSTALL_NAME, CODEX_HOOK_ASSET, CODEX_HOOK_INSTALL_NAME, COPILOT_HOOK_ASSET,
+    CLAUDE_HOOK_INSTALL_NAME, CODEX_HOOK_ASSET, CODEX_HOOK_INSTALL_NAME, COMMANDCODE_HOOK_ASSET,
+    COMMANDCODE_HOOK_INSTALL_NAME, COMMANDCODE_HOOK_TIMEOUT_SEC, COPILOT_HOOK_ASSET,
     COPILOT_HOOK_EVENTS, COPILOT_HOOK_INSTALL_NAME, COPILOT_REMOVED_LIFECYCLE_HOOK_EVENTS,
     CURSOR_HOOK_ASSET, CURSOR_HOOK_INSTALL_NAME, DEVIN_HOOK_ASSET, DEVIN_HOOK_EVENTS,
     DEVIN_HOOK_INSTALL_NAME, DEVIN_REMOVED_LIFECYCLE_HOOK_EVENTS, DROID_HOOK_ASSET,
@@ -54,14 +58,16 @@ use super::{
     GROK_HOOK_ASSET, GROK_HOOK_CONFIG_INSTALL_NAME, GROK_HOOK_INSTALL_NAME,
     HERMES_PLUGIN_INIT_ASSET, HERMES_PLUGIN_INIT_INSTALL_NAME, HERMES_PLUGIN_MANIFEST_ASSET,
     HERMES_PLUGIN_MANIFEST_INSTALL_NAME, KILO_PLUGIN_ASSET, KILO_PLUGIN_INSTALL_NAME,
-    KIMI_HOOK_ASSET, KIMI_HOOK_INSTALL_NAME, LETTA_HOOK_ASSET, LETTA_HOOK_INSTALL_NAME,
-    LETTA_HOOK_TIMEOUT_MS, MASTRACODE_HOOK_ASSET, MASTRACODE_HOOK_EVENTS,
-    MASTRACODE_HOOK_INSTALL_NAME, MASTRACODE_HOOK_TIMEOUT_MS, MASTRACODE_REMOVED_HOOK_EVENTS,
-    OMP_EXTENSION_ASSET, OMP_EXTENSION_INSTALL_NAME, OPENCODE_PLUGIN_ASSET,
-    OPENCODE_PLUGIN_INSTALL_NAME, OPENCODE_TUI_PLUGIN_ASSET, OPENCODE_TUI_PLUGIN_INSTALL_NAME,
-    OPENCODE_TUI_PLUGIN_SPEC, PI_EXTENSION_ASSET, PI_EXTENSION_INSTALL_NAME, QODERCLI_HOOK_ASSET,
-    QODERCLI_HOOK_EVENTS, QODERCLI_HOOK_INSTALL_NAME, QODERCLI_REMOVED_LIFECYCLE_HOOK_EVENTS,
-    QWEN_HOOK_ASSET, QWEN_HOOK_EVENTS, QWEN_HOOK_INSTALL_NAME,
+    KIMI_HOOK_ASSET, KIMI_HOOK_INSTALL_NAME, KIRO_HOOK_ASSET, KIRO_HOOK_CONFIG_INSTALL_NAME,
+    KIRO_HOOK_INSTALL_NAME, LETTA_HOOK_ASSET, LETTA_HOOK_INSTALL_NAME, LETTA_HOOK_TIMEOUT_MS,
+    MASTRACODE_HOOK_ASSET, MASTRACODE_HOOK_EVENTS, MASTRACODE_HOOK_INSTALL_NAME,
+    MASTRACODE_HOOK_TIMEOUT_MS, MASTRACODE_REMOVED_HOOK_EVENTS, MUSE_HOOK_ASSET,
+    MUSE_HOOK_INSTALL_NAME, MUSE_HOOK_TIMEOUT_SEC, OMP_EXTENSION_ASSET, OMP_EXTENSION_INSTALL_NAME,
+    OPENCODE_PLUGIN_ASSET, OPENCODE_PLUGIN_INSTALL_NAME, OPENCODE_TUI_PLUGIN_ASSET,
+    OPENCODE_TUI_PLUGIN_INSTALL_NAME, OPENCODE_TUI_PLUGIN_SPEC, PI_EXTENSION_ASSET,
+    PI_EXTENSION_INSTALL_NAME, QODERCLI_HOOK_ASSET, QODERCLI_HOOK_EVENTS,
+    QODERCLI_HOOK_INSTALL_NAME, QODERCLI_REMOVED_LIFECYCLE_HOOK_EVENTS, QWEN_HOOK_ASSET,
+    QWEN_HOOK_EVENTS, QWEN_HOOK_INSTALL_NAME,
 };
 
 fn ensure_extension_dir(dir: &Path, agent: &str) -> io::Result<()> {
@@ -1787,5 +1793,233 @@ pub(crate) fn uninstall_grok() -> io::Result<GrokUninstallResult> {
         config_path,
         removed_hook_file,
         removed_config_file,
+    })
+}
+
+pub(crate) fn install_muse() -> io::Result<MuseInstallPaths> {
+    let dir = muse_dir()?;
+    if !dir.is_dir() {
+        return Err(io::Error::other(format!(
+            "muse config directory not found at {}. install muse code first",
+            dir.display()
+        )));
+    }
+
+    let hooks_dir = dir.join("hooks");
+    fs::create_dir_all(&hooks_dir)?;
+    let hook_path = hooks_dir.join(MUSE_HOOK_INSTALL_NAME);
+    fs::write(&hook_path, MUSE_HOOK_ASSET)?;
+    make_executable(&hook_path)?;
+
+    let settings_path = dir.join("settings.json");
+    let mut settings = if settings_path.is_file() {
+        serde_json::from_str::<Value>(&fs::read_to_string(&settings_path)?).map_err(|err| {
+            io::Error::other(format!(
+                "failed to parse {}: {err}",
+                settings_path.display()
+            ))
+        })?
+    } else {
+        json!({})
+    };
+
+    let hooks = ensure_hooks_object(
+        &mut settings,
+        &settings_path,
+        "muse settings",
+        "muse settings hooks",
+    )?;
+    remove_hook_commands(hooks, "SessionStart", &hook_path, Some("session"))?;
+    ensure_command_hook(
+        hooks,
+        "SessionStart",
+        hook_command(&hook_path, Some("session")),
+        MUSE_HOOK_TIMEOUT_SEC,
+        None,
+    )?;
+
+    fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
+
+    Ok(MuseInstallPaths {
+        hook_path,
+        settings_path,
+    })
+}
+
+pub(crate) fn uninstall_muse() -> io::Result<MuseUninstallResult> {
+    let dir = muse_dir()?;
+    let hook_path = dir.join("hooks").join(MUSE_HOOK_INSTALL_NAME);
+    let settings_path = dir.join("settings.json");
+
+    let removed_hook_file = remove_file_if_exists(&hook_path)?;
+    let mut updated_settings = false;
+
+    if settings_path.is_file() {
+        let content = fs::read_to_string(&settings_path)?;
+        if let Ok(mut settings) = serde_json::from_str::<Value>(&content) {
+            if let Ok(Some(hooks)) = hooks_object_if_present(
+                &mut settings,
+                &settings_path,
+                "muse settings",
+                "muse settings hooks",
+            ) {
+                if remove_hook_commands(hooks, "SessionStart", &hook_path, Some("session"))? {
+                    fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
+                    updated_settings = true;
+                }
+            }
+        }
+    }
+
+    Ok(MuseUninstallResult {
+        hook_path,
+        settings_path,
+        removed_hook_file,
+        updated_settings,
+    })
+}
+
+pub(crate) fn kiro_hook_config(hook_path: &Path) -> Value {
+    json!({
+        "version": "v1",
+        "hooks": [
+            {
+                "name": "herdr-session-report",
+                "description": "Report Kiro session ID to Herdr",
+                "trigger": "SessionStart",
+                "action": {
+                    "type": "command",
+                    "command": hook_command(hook_path, Some("session"))
+                },
+                "enabled": true
+            }
+        ]
+    })
+}
+
+pub(crate) fn install_kiro() -> io::Result<KiroInstallPaths> {
+    let dir = kiro_dir()?;
+    if !dir.is_dir() {
+        return Err(io::Error::other(format!(
+            "kiro config directory not found at {}. install kiro cli first",
+            dir.display()
+        )));
+    }
+
+    let hooks_dir = dir.join("hooks");
+    fs::create_dir_all(&hooks_dir)?;
+
+    let hook_path = hooks_dir.join(KIRO_HOOK_INSTALL_NAME);
+    fs::write(&hook_path, KIRO_HOOK_ASSET)?;
+    make_executable(&hook_path)?;
+
+    let config_path = hooks_dir.join(KIRO_HOOK_CONFIG_INSTALL_NAME);
+    fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&kiro_hook_config(&hook_path))?,
+    )?;
+
+    Ok(KiroInstallPaths {
+        hook_path,
+        config_path,
+    })
+}
+
+pub(crate) fn uninstall_kiro() -> io::Result<KiroUninstallResult> {
+    let hooks_dir = kiro_dir()?.join("hooks");
+    let hook_path = hooks_dir.join(KIRO_HOOK_INSTALL_NAME);
+    let config_path = hooks_dir.join(KIRO_HOOK_CONFIG_INSTALL_NAME);
+
+    let removed_config_file = remove_file_if_exists(&config_path)?;
+    let removed_hook_file = remove_file_if_exists(&hook_path)?;
+
+    Ok(KiroUninstallResult {
+        hook_path,
+        config_path,
+        removed_hook_file,
+        removed_config_file,
+    })
+}
+
+pub(crate) fn install_commandcode() -> io::Result<CommandCodeInstallPaths> {
+    let dir = commandcode_dir()?;
+    if !dir.is_dir() {
+        return Err(io::Error::other(format!(
+            "command-code config directory not found at {}. install command-code first",
+            dir.display()
+        )));
+    }
+
+    let hooks_dir = dir.join("hooks");
+    fs::create_dir_all(&hooks_dir)?;
+    let hook_path = hooks_dir.join(COMMANDCODE_HOOK_INSTALL_NAME);
+    fs::write(&hook_path, COMMANDCODE_HOOK_ASSET)?;
+    make_executable(&hook_path)?;
+
+    let settings_path = dir.join("settings.json");
+    let mut settings = if settings_path.is_file() {
+        serde_json::from_str::<Value>(&fs::read_to_string(&settings_path)?).map_err(|err| {
+            io::Error::other(format!(
+                "failed to parse {}: {err}",
+                settings_path.display()
+            ))
+        })?
+    } else {
+        json!({})
+    };
+
+    let hooks = ensure_hooks_object(
+        &mut settings,
+        &settings_path,
+        "command-code settings",
+        "command-code settings hooks",
+    )?;
+    remove_hook_commands(hooks, "SessionStart", &hook_path, Some("session"))?;
+    ensure_command_hook(
+        hooks,
+        "SessionStart",
+        hook_command(&hook_path, Some("session")),
+        COMMANDCODE_HOOK_TIMEOUT_SEC,
+        None,
+    )?;
+
+    fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
+
+    Ok(CommandCodeInstallPaths {
+        hook_path,
+        settings_path,
+    })
+}
+
+pub(crate) fn uninstall_commandcode() -> io::Result<CommandCodeUninstallResult> {
+    let dir = commandcode_dir()?;
+    let hook_path = dir.join("hooks").join(COMMANDCODE_HOOK_INSTALL_NAME);
+    let settings_path = dir.join("settings.json");
+
+    let removed_hook_file = remove_file_if_exists(&hook_path)?;
+    let mut updated_settings = false;
+
+    if settings_path.is_file() {
+        let content = fs::read_to_string(&settings_path)?;
+        if let Ok(mut settings) = serde_json::from_str::<Value>(&content) {
+            if let Ok(Some(hooks)) = hooks_object_if_present(
+                &mut settings,
+                &settings_path,
+                "command-code settings",
+                "command-code settings hooks",
+            ) {
+                if remove_hook_commands(hooks, "SessionStart", &hook_path, Some("session"))? {
+                    fs::write(&settings_path, serde_json::to_string_pretty(&settings)?)?;
+                    updated_settings = true;
+                }
+            }
+        }
+    }
+
+    Ok(CommandCodeUninstallResult {
+        hook_path,
+        settings_path,
+        removed_hook_file,
+        updated_settings,
     })
 }

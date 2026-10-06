@@ -329,6 +329,48 @@ Herdr uses `~/.grok` by default, or `GROK_HOME` when set. The Grok config direct
 
 After Grok emits a session start event, Herdr can use the reported session id to resume the pane with `grok --resume <id>`.
 
+## Muse Code
+
+Muse Code integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `muse (experimental)`. Agent detection and session tracking are supported independently.
+
+Install the Muse Code hook:
+
+```bash
+herdr integration install muse
+```
+
+The quiet `SessionStart` hook reports the active session ID for native session resume (`muse --resume <id>`). Screen manifest detection remains authoritative for Muse Code's `idle`, `working`, and `blocked` state.
+
+Herdr uses `~/.config/muse` (or `$XDG_CONFIG_HOME/muse`, or `$MUSE_CONFIG_DIR` when set). The config directory must exist before installation. Install writes `hooks/herdr-agent-state.sh` (`hooks/herdr-agent-state.ps1` on Windows) and updates `settings.json` under `"hooks"."SessionStart"`. Uninstall removes the Herdr command from `settings.json` and deletes the hook script.
+
+## Kiro CLI
+
+Kiro CLI integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `kiro (experimental)`.
+
+Install the Kiro CLI hook:
+
+```bash
+herdr integration install kiro
+```
+
+The hook reports session identity on `SessionStart`. Screen manifest detection remains authoritative for Kiro's lifecycle state. After Kiro emits a session start event, Herdr can resume the pane with `kiro-cli chat --resume-id <id>`.
+
+Herdr uses `~/.kiro` (or `$KIRO_CONFIG_DIR` when set). The config directory must exist before installation. Install writes `hooks/herdr-agent-state.sh` (`hooks/herdr-agent-state.ps1` on Windows) and creates `hooks/herdr.json` with the `SessionStart` trigger. Uninstall removes both files without modifying other Kiro configuration.
+
+## Command Code
+
+Command Code integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `command-code (experimental)`.
+
+Install the Command Code hook:
+
+```bash
+herdr integration install command-code
+```
+
+The quiet `SessionStart` hook reports the session ID for native resume (`command-code --resume <id>`). Screen manifest detection remains authoritative for Command Code state.
+
+Herdr uses `~/.commandcode` (or `$COMMANDCODE_CONFIG_DIR` when set). The config directory must exist before installation. Install writes `hooks/herdr-agent-state.sh` (`hooks/herdr-agent-state.ps1` on Windows) and registers the hook under `"hooks"."SessionStart"` in `settings.json`. Uninstall removes the Herdr command from `settings.json` and deletes the hook script.
+
 ## Custom status labels
 
 Integrations report lifecycle state as semantic state only. For example, report an agent as `working` without adding display fields to the lifecycle report.

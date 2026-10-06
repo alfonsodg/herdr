@@ -136,18 +136,54 @@ pub fn persisted_session_from_launch_args(
     agent: crate::detect::Agent,
     args: &[String],
 ) -> Option<PersistedAgentSession> {
-    let [command, session_id] = args else {
-        return None;
-    };
-    if agent != crate::detect::Agent::Codex || command != "resume" || session_id.starts_with('-') {
-        return None;
+    match (agent, args) {
+        (crate::detect::Agent::Codex, [command, session_id])
+            if command == "resume" && !session_id.starts_with('-') =>
+        {
+            Some(PersistedAgentSession {
+                source: "herdr:codex".into(),
+                agent: "codex".into(),
+                session_ref: AgentSessionRef::id(session_id.clone())?,
+            })
+        }
+        (crate::detect::Agent::Muse, [flag, session_id])
+            if flag == "--resume" && !session_id.starts_with('-') =>
+        {
+            Some(PersistedAgentSession {
+                source: "herdr:muse".into(),
+                agent: "muse".into(),
+                session_ref: AgentSessionRef::id(session_id.clone())?,
+            })
+        }
+        (crate::detect::Agent::CommandCode, [flag, session_id])
+            if flag == "--resume" && !session_id.starts_with('-') =>
+        {
+            Some(PersistedAgentSession {
+                source: "herdr:command-code".into(),
+                agent: "command-code".into(),
+                session_ref: AgentSessionRef::id(session_id.clone())?,
+            })
+        }
+        (crate::detect::Agent::Kiro, [subcommand, flag, session_id])
+            if subcommand == "chat" && flag == "--resume-id" && !session_id.starts_with('-') =>
+        {
+            Some(PersistedAgentSession {
+                source: "herdr:kiro".into(),
+                agent: "kiro-cli".into(),
+                session_ref: AgentSessionRef::id(session_id.clone())?,
+            })
+        }
+        (crate::detect::Agent::Kiro, [flag, session_id])
+            if flag == "--resume-id" && !session_id.starts_with('-') =>
+        {
+            Some(PersistedAgentSession {
+                source: "herdr:kiro".into(),
+                agent: "kiro-cli".into(),
+                session_ref: AgentSessionRef::id(session_id.clone())?,
+            })
+        }
+        _ => None,
     }
-
-    Some(PersistedAgentSession {
-        source: "herdr:codex".into(),
-        agent: "codex".into(),
-        session_ref: AgentSessionRef::id(session_id.clone())?,
-    })
 }
 
 pub fn normalize_session_start_source(value: Option<String>) -> Option<String> {
@@ -171,6 +207,11 @@ pub fn is_reserved_native_state_source(source: &str, agent: &str) -> bool {
             | ("herdr:qwen", "qwen")
             | ("herdr:cursor", "cursor")
             | ("herdr:grok", "grok")
+            | ("herdr:muse", "muse")
+            | ("herdr:command-code", "command-code")
+            | ("herdr:kiro", "kiro")
+            | ("herdr:kiro", "kiro-cli")
+            | ("herdr:kiro-cli", "kiro-cli")
     )
 }
 
@@ -437,6 +478,17 @@ mod tests {
             "herdr:opencode",
             "opencode"
         ));
+        assert!(is_reserved_native_state_source("herdr:muse", "muse"));
+        assert!(is_reserved_native_state_source(
+            "herdr:command-code",
+            "command-code"
+        ));
+        assert!(is_reserved_native_state_source("herdr:kiro", "kiro"));
+        assert!(is_reserved_native_state_source("herdr:kiro", "kiro-cli"));
+        assert!(is_reserved_native_state_source(
+            "herdr:kiro-cli",
+            "kiro-cli"
+        ));
     }
 
     #[test]
@@ -469,6 +521,65 @@ mod tests {
                 "resume".into(),
                 "remote-session".into(),
             ]
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn managed_agents_resume_launch_persists_session() {
+        assert_eq!(
+            persisted_session_from_launch_args(
+                crate::detect::Agent::Muse,
+                &["--resume".into(), "muse-sess-1".into()]
+            )
+            .unwrap()
+            .session_ref
+            .value,
+            "muse-sess-1"
+        );
+        assert_eq!(
+            persisted_session_from_launch_args(
+                crate::detect::Agent::CommandCode,
+                &["--resume".into(), "cmd-sess-1".into()]
+            )
+            .unwrap()
+            .session_ref
+            .value,
+            "cmd-sess-1"
+        );
+        assert_eq!(
+            persisted_session_from_launch_args(
+                crate::detect::Agent::Kiro,
+                &["chat".into(), "--resume-id".into(), "kiro-sess-1".into()]
+            )
+            .unwrap()
+            .session_ref
+            .value,
+            "kiro-sess-1"
+        );
+        assert_eq!(
+            persisted_session_from_launch_args(
+                crate::detect::Agent::Kiro,
+                &["--resume-id".into(), "kiro-sess-2".into()]
+            )
+            .unwrap()
+            .session_ref
+            .value,
+            "kiro-sess-2"
+        );
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::Muse,
+            &["--resume".into(), "--flag".into()]
+        )
+        .is_none());
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::CommandCode,
+            &["--resume".into(), "--flag".into()]
+        )
+        .is_none());
+        assert!(persisted_session_from_launch_args(
+            crate::detect::Agent::Kiro,
+            &["chat".into(), "--resume-id".into(), "--flag".into()]
         )
         .is_none());
     }
