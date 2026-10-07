@@ -331,6 +331,48 @@ Herdr はデフォルトで `~/.grok` を使い、`GROK_HOME` が設定されて
 
 Grok がセッション開始イベントを発行した後、Herdr は報告されたセッション id を使って `grok --resume <id>` でペインを resume できます。
 
+## Muse Code
+
+Muse Code インテグレーションのインストールは実験的で CLI 専用です。`herdr integration status` では `muse (experimental)` と報告されます。エージェント検出とセッション追跡は独立してサポートされています。
+
+Muse Code フックをインストールします:
+
+```bash
+herdr integration install muse
+```
+
+静かな `SessionStart` フックは、ネイティブセッション復元 (`muse --resume <id>`) のためにアクティブなセッション ID を報告します。Muse Code の `idle`、`working`、および `blocked` 状態については、スクリーンマニフェスト検出が引き続き権威を持ちます。
+
+Herdr は `~/.config/muse`（または `$XDG_CONFIG_HOME/muse`、あるいは `$MUSE_CONFIG_DIR` が設定されている場合はそちら）を使用します。設定ディレクトリはインストール前に存在している必要があります。インストールによって `hooks/herdr-agent-state.sh`（Windows では `hooks/herdr-agent-state.ps1`）が書き込まれ、`settings.json` の `"hooks"."SessionStart"` が更新されます。アンインストールは `settings.json` から Herdr コマンドを削除し、フックスクリプトを削除します。
+
+## Kiro CLI
+
+Kiro CLI インテグレーションのインストールは実験的で CLI 専用です。`herdr integration status` では `kiro (experimental)` と報告されます。
+
+Kiro CLI フックをインストールします:
+
+```bash
+herdr integration install kiro
+```
+
+このフックは `SessionStart` でセッション識別を報告します。Kiro のライフサイクル状態については、スクリーンマニフェスト検出が引き続き権威を持ちます。Kiro がセッション開始イベントを発行した後、Herdr は `kiro-cli chat --resume-id <id>` でペインを復元できます。
+
+Herdr は `~/.kiro`（または `$KIRO_CONFIG_DIR` が設定されている場合はそちら）を使用します。設定ディレクトリはインストール前に存在している必要があります。インストールによって `hooks/herdr-agent-state.sh`（Windows では `hooks/herdr-agent-state.ps1`）が書き込まれ、`SessionStart` トリガーを含む `hooks/herdr.json` が作成されます。アンインストールは他の Kiro 設定を変更することなく両方のファイルを削除します。
+
+## Command Code
+
+Command Code インテグレーションのインストールは実験的で CLI 専用です。`herdr integration status` では `command-code (experimental)` と報告されます。
+
+Command Code フックをインストールします:
+
+```bash
+herdr integration install command-code
+```
+
+静かな `SessionStart` フックは、ネイティブ復元 (`command-code --resume <id>`) のためにセッション ID を報告します。Command Code の状態については、スクリーンマニフェスト検出が引き続き権威を持ちます。
+
+Herdr は `~/.commandcode`（または `$COMMANDCODE_CONFIG_DIR` が設定されている場合はそちら）を使用します。設定ディレクトリはインストール前に存在している必要があります。インストールによって `hooks/herdr-agent-state.sh`（Windows では `hooks/herdr-agent-state.ps1`）が書き込まれ、`settings.json` の `"hooks"."SessionStart"` にフックが登録されます。アンインストールは `settings.json` から Herdr コマンドを削除し、フックスクリプトを削除します。
+
 ## カスタムステータスラベル
 
 インテグレーションは、ライフサイクル状態を意味的な状態としてのみ報告します。たとえば、ライフサイクル報告に表示フィールドを加えず、エージェントを `working` として報告します。

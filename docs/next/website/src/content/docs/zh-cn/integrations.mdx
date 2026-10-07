@@ -331,6 +331,48 @@ Herdr 默认使用 `~/.grok`,设置了 `GROK_HOME` 时使用后者。Grok 配置
 
 Grok 发出会话启动事件后,Herdr 可以用上报的会话 id 通过 `grok --resume <id>` 恢复窗格。
 
+## Muse Code
+
+Muse Code 集成安装属于实验性功能，仅支持 CLI。在 `herdr integration status` 中显示为 `muse (experimental)`。智能体检测和会话跟踪是独立支持的。
+
+安装 Muse Code 钩子:
+
+```bash
+herdr integration install muse
+```
+
+静默的 `SessionStart` 钩子上报当前会话 ID，用于原生会话恢复 (`muse --resume <id>`)。对于 Muse Code 的 `idle`、`working` 和 `blocked` 状态，屏幕清单检测仍然具有权威性。
+
+Herdr 默认使用 `~/.config/muse`（设置了 `$XDG_CONFIG_HOME/muse` 或 `$MUSE_CONFIG_DIR` 时使用对应路径）。配置目录必须在安装前存在。安装会写入 `hooks/herdr-agent-state.sh`（Windows 上为 `hooks/herdr-agent-state.ps1`），并在 `settings.json` 的 `"hooks"."SessionStart"` 下更新配置。卸载会从 `settings.json` 中移除 Herdr 命令并删除钩子脚本。
+
+## Kiro CLI
+
+Kiro CLI 集成安装属于实验性功能，仅支持 CLI。在 `herdr integration status` 中显示为 `kiro (experimental)`。
+
+安装 Kiro CLI 钩子:
+
+```bash
+herdr integration install kiro
+```
+
+该钩子在 `SessionStart` 时上报会话身份。对于 Kiro 的生命周期状态，屏幕清单检测仍然具有权威性。Kiro 发出会话启动事件后，Herdr 可以使用上报的会话 ID 通过 `kiro-cli chat --resume-id <id>` 恢复窗格。
+
+Herdr 默认使用 `~/.kiro`（设置了 `$KIRO_CONFIG_DIR` 时使用对应路径）。配置目录必须在安装前存在。安装会写入 `hooks/herdr-agent-state.sh`（Windows 上为 `hooks/herdr-agent-state.ps1`），并创建带有 `SessionStart` 触发器的 `hooks/herdr.json`。卸载会删除这两个文件，且不修改其他 Kiro 配置。
+
+## Command Code
+
+Command Code 集成安装属于实验性功能，仅支持 CLI。在 `herdr integration status` 中显示为 `command-code (experimental)`。
+
+安装 Command Code 钩子:
+
+```bash
+herdr integration install command-code
+```
+
+静默的 `SessionStart` 钩子上报会话 ID，用于原生恢复 (`command-code --resume <id>`)。对于 Command Code 的状态，屏幕清单检测仍然具有权威性。
+
+Herdr 默认使用 `~/.commandcode`（设置了 `$COMMANDCODE_CONFIG_DIR` 时使用对应路径）。配置目录必须在安装前存在。安装会写入 `hooks/herdr-agent-state.sh`（Windows 上为 `hooks/herdr-agent-state.ps1`），并在 `settings.json` 的 `"hooks"."SessionStart"` 下注册钩子。卸载会从 `settings.json` 中移除 Herdr 命令并删除钩子脚本。
+
 ## 自定义状态标签
 
 集成只把生命周期状态作为语义状态上报。例如,上报智能体为 `working` 时,不在生命周期报告中添加展示字段。
