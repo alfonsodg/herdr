@@ -987,9 +987,10 @@ fn navigator_and_worktree_search_support_shifted_slash() {
         navigator.search_focused = false;
     }
 
-    // 2. Test Navigator with Char('/') and Shift modifier (e.g. French layout)
+    // 2. Test Navigator with Char('/') and Shift modifier with generated text (e.g. French layout)
     let shifted_char_slash =
-        crate::input::TerminalKey::new(KeyCode::Char('/'), KeyModifiers::SHIFT);
+        crate::input::TerminalKey::new(KeyCode::Char('/'), KeyModifiers::SHIFT)
+            .with_generated_text(Some("/".into()));
     let outcome = state.handle_raw_events(vec![RawInputEvent::Key(shifted_char_slash)]);
     assert!(outcome.repaint);
     let Some(ClientShellOverlay::Navigator(navigator)) = state.overlay.as_ref() else {
