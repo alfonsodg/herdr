@@ -47,6 +47,7 @@ pub struct AgentSoundOverrides {
     pub letta: AgentSoundSetting,
     pub maki: AgentSoundSetting,
     pub muse: AgentSoundSetting,
+    pub command_code: AgentSoundSetting,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -146,7 +147,7 @@ impl AgentSoundOverrides {
             Some(Agent::Letta) => self.letta,
             Some(Agent::Maki) => self.maki,
             Some(Agent::Muse) => self.muse,
-            Some(Agent::CommandCode) => AgentSoundSetting::Default,
+            Some(Agent::CommandCode) => self.command_code,
             None => AgentSoundSetting::Default,
         }
     }
@@ -189,6 +190,7 @@ impl Default for AgentSoundOverrides {
             letta: AgentSoundSetting::Default,
             maki: AgentSoundSetting::Default,
             muse: AgentSoundSetting::Default,
+            command_code: AgentSoundSetting::Default,
         }
     }
 }
@@ -237,6 +239,16 @@ claude = "on"
         assert_eq!(
             overrides.for_agent(Some(Agent::Letta)),
             AgentSoundSetting::On
+        );
+    }
+
+    #[test]
+    fn command_code_sound_override_is_used() {
+        let overrides: AgentSoundOverrides = toml::from_str("command_code = \"off\"").unwrap();
+        assert_eq!(overrides.command_code, AgentSoundSetting::Off);
+        assert_eq!(
+            overrides.for_agent(Some(Agent::CommandCode)),
+            AgentSoundSetting::Off
         );
     }
 
