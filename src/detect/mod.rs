@@ -186,7 +186,7 @@ pub fn interactive_agent_executable(agent: Agent) -> &'static str {
         Agent::Letta => "letta",
         Agent::Maki => "maki",
         Agent::Muse => "muse",
-        Agent::CommandCode => "cmd",
+        Agent::CommandCode => "command-code",
     }
 }
 
@@ -1122,7 +1122,7 @@ mod tests {
             (Agent::Letta, "letta"),
             (Agent::Maki, "maki"),
             (Agent::Muse, "muse"),
-            (Agent::CommandCode, "cmd"),
+            (Agent::CommandCode, "command-code"),
         ];
         assert_eq!(expected.len(), Agent::ALL.len());
         for (agent, executable) in expected {
