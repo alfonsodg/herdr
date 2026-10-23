@@ -7485,6 +7485,22 @@
           ],
           "type": "string"
         },
+        "ExperimentalIntegrationInfo": {
+          "description": "An integration that the server supports but the frozen [`IntegrationTarget`]\nenum cannot name. Older clients ignore the optional response field that\ncarries these, so adding one here never breaks a published endpoint.",
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "state": {
+              "$ref": "#/schemas/success_response/$defs/IntegrationState"
+            }
+          },
+          "required": [
+            "label",
+            "state"
+          ],
+          "type": "object"
+        },
         "InstalledPluginInfo": {
           "properties": {
             "actions": {
@@ -10011,6 +10027,12 @@
             },
             {
               "properties": {
+                "experimental": {
+                  "items": {
+                    "$ref": "#/schemas/success_response/$defs/ExperimentalIntegrationInfo"
+                  },
+                  "type": "array"
+                },
                 "integrations": {
                   "items": {
                     "$ref": "#/schemas/success_response/$defs/IntegrationInfo"

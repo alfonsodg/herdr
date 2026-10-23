@@ -1231,6 +1231,10 @@ fn client_settings_preview_restore_and_endpoint_integrations_are_owned_by_overla
                             state: crate::api::schema::IntegrationState::NotInstalled,
                         },
                     ],
+                    experimental: vec![crate::api::schema::ExperimentalIntegrationInfo {
+                        label: "muse".into(),
+                        state: crate::api::schema::IntegrationState::Current,
+                    }],
                 }),
             )
             .0
@@ -1248,6 +1252,8 @@ fn client_settings_preview_restore_and_endpoint_integrations_are_owned_by_overla
         .join("\n");
     assert!(text.contains("update available"));
     assert!(text.contains("not found"));
+    assert!(text.contains("experimental"));
+    assert!(text.contains("muse"));
     assert!(!text.contains("pane labels"));
 
     let popup = state.hits.settings_popup;

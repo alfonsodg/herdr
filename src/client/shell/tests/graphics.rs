@@ -316,6 +316,7 @@ fn every_dialog_and_menu_occludes_its_panel_not_the_whole_screen() {
             original_theme_name: String::new(),
             original_palette: palette,
             integrations: Vec::new(),
+            experimental_integrations: Vec::new(),
             integration_messages: Vec::new(),
             loading_integrations: false,
             installing_integrations: false,

@@ -39,6 +39,7 @@ impl ClientShellState {
             original_theme_name: self.config.theme_name.clone(),
             original_palette: self.config.palette.clone(),
             integrations: Vec::new(),
+            experimental_integrations: Vec::new(),
             integration_messages: Vec::new(),
             loading_integrations: false,
             installing_integrations: false,
@@ -296,8 +297,10 @@ impl ClientShellState {
                     match result {
                         Ok(crate::api::schema::ResponseResult::IntegrationList {
                             integrations,
+                            experimental,
                         }) => {
                             settings.integrations = integrations;
+                            settings.experimental_integrations = experimental;
                             settings.selected = settings
                                 .selected
                                 .min(settings.integrations.len().saturating_sub(1));

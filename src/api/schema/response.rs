@@ -204,6 +204,8 @@ pub enum ResponseResult {
     },
     IntegrationList {
         integrations: Vec<super::integrations::IntegrationInfo>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        experimental: Vec<super::integrations::ExperimentalIntegrationInfo>,
     },
     IntegrationInstall {
         target: IntegrationTarget,

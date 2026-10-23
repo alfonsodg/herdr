@@ -17,6 +17,15 @@ pub struct IntegrationInfo {
     pub state: IntegrationState,
 }
 
+/// An integration that the server supports but the frozen [`IntegrationTarget`]
+/// enum cannot name. Older clients ignore the optional response field that
+/// carries these, so adding one here never breaks a published endpoint.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct ExperimentalIntegrationInfo {
+    pub label: String,
+    pub state: IntegrationState,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IntegrationInstallParams {
     pub target: IntegrationTarget,

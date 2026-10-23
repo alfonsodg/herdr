@@ -293,11 +293,34 @@ fn integration_list_request_and_response_round_trip() {
                 available: true,
                 state: IntegrationState::Outdated,
             }],
+            experimental: Vec::new(),
         },
     };
     let json = serde_json::to_value(&response).unwrap();
     assert_eq!(json["result"]["type"], "integration_list");
     assert_eq!(json["result"]["integrations"][0]["state"], "outdated");
+    assert!(json["result"].get("experimental").is_none());
+    assert_eq!(
+        serde_json::from_value::<SuccessResponse>(json).unwrap(),
+        response
+    );
+}
+
+#[test]
+fn integration_list_serializes_experimental_rows() {
+    let response = SuccessResponse {
+        id: "req_integrations".into(),
+        result: ResponseResult::IntegrationList {
+            integrations: Vec::new(),
+            experimental: vec![ExperimentalIntegrationInfo {
+                label: "muse".into(),
+                state: IntegrationState::Current,
+            }],
+        },
+    };
+    let json = serde_json::to_value(&response).unwrap();
+    assert_eq!(json["result"]["experimental"][0]["label"], "muse");
+    assert_eq!(json["result"]["experimental"][0]["state"], "current");
     assert_eq!(
         serde_json::from_value::<SuccessResponse>(json).unwrap(),
         response

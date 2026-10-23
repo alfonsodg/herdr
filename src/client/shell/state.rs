@@ -417,6 +417,7 @@ pub(super) struct ClientSettingsOverlay {
     pub(super) original_theme_name: String,
     pub(super) original_palette: Palette,
     pub(super) integrations: Vec<crate::api::schema::IntegrationInfo>,
+    pub(super) experimental_integrations: Vec<crate::api::schema::ExperimentalIntegrationInfo>,
     pub(super) integration_messages: Vec<String>,
     pub(super) loading_integrations: bool,
     pub(super) installing_integrations: bool,

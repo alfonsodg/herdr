@@ -259,7 +259,7 @@ Herdr resumes stored Qwen Code sessions with `qwen --resume <id>`.
 
 ## Letta Code
 
-Letta Code integration installation is experimental and CLI-only. It is not listed in the Settings integration screen or the JSON integration API. `herdr integration status` reports it as `letta (experimental)`. Agent detection and `herdr agent start --kind letta` are supported independently of this installation restriction.
+Letta Code integration installation is experimental and CLI-only. The Settings integration screen lists it under an experimental section and the JSON integration API carries it in the optional `experimental` field, but installation from that screen is not supported. `herdr integration status` reports it as `letta (experimental)`. Agent detection and `herdr agent start --kind letta` are supported independently of this installation restriction.
 
 Install the Letta Code hook:
 
@@ -331,7 +331,7 @@ After Grok emits a session start event, Herdr can use the reported session id to
 
 ## Muse Code
 
-Muse Code integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `muse (experimental)`. Agent detection and session tracking are supported independently.
+Muse Code integration installation is experimental and CLI-only. The Settings integration screen lists it under an experimental section and the JSON integration API carries it in the optional `experimental` field. It is reported in `herdr integration status` as `muse (experimental)`. Agent detection and session tracking are supported independently.
 
 Install the Muse Code hook:
 
@@ -345,7 +345,7 @@ Herdr uses `~/.config/muse` (or `$XDG_CONFIG_HOME/muse`, or `$MUSE_CONFIG_DIR` w
 
 ## Kiro CLI
 
-Kiro CLI integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `kiro (experimental)`.
+Kiro CLI integration installation is experimental and CLI-only. The Settings integration screen lists it under an experimental section and the JSON integration API carries it in the optional `experimental` field. It is reported in `herdr integration status` as `kiro (experimental)`.
 
 Install the Kiro CLI hook:
 
@@ -359,7 +359,7 @@ Herdr uses `~/.kiro` (or `$KIRO_CONFIG_DIR` when set). The config directory must
 
 ## Command Code
 
-Command Code integration installation is experimental and CLI-only. It is reported in `herdr integration status` as `command-code (experimental)`.
+Command Code integration installation is experimental and CLI-only. The Settings integration screen lists it under an experimental section and the JSON integration API carries it in the optional `experimental` field. It is reported in `herdr integration status` as `command-code (experimental)`.
 
 Install the Command Code hook:
 

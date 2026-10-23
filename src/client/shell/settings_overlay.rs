@@ -39,8 +39,14 @@ pub(super) fn render_settings_overlay(
     integration_updates_available: bool,
     palette: &Palette,
 ) -> Option<OverlayRender> {
+    let experimental_height = if settings.experimental_integrations.is_empty() {
+        0
+    } else {
+        1u16.saturating_add(settings.experimental_integrations.len() as u16)
+    };
     let integration_height = 14u16
         .saturating_add(settings.integrations.len().max(1) as u16)
+        .saturating_add(experimental_height)
         .saturating_add(settings.integration_messages.len().min(6) as u16);
     let height = if settings.section == ClientSettingsSection::Integrations {
         integration_height.max(22)
@@ -347,47 +353,52 @@ fn render_integrations(
         if y >= area.bottom() {
             break;
         }
-        let (marker, color, status) = match integration.state {
-            crate::api::schema::IntegrationState::Current => ("✓", palette.green, "installed"),
-            crate::api::schema::IntegrationState::Outdated => {
-                ("↻", palette.yellow, "update available")
-            }
-            crate::api::schema::IntegrationState::NotInstalled if integration.available => {
-                ("+", palette.accent, "available")
-            }
-            crate::api::schema::IntegrationState::NotInstalled => {
-                ("–", palette.overlay0, "not found")
-            }
-        };
-        put_text(
+        render_integration_row(
             buffer,
-            area.x,
+            area,
             y,
-            3,
-            &format!(" {marker}"),
-            Style::default().fg(color).bg(palette.panel_bg),
-        );
-        put_text(
-            buffer,
-            area.x + 3,
-            y,
-            11.min(area.width.saturating_sub(3)),
-            &format!("{:<9}", integration.label),
-            Style::default().fg(palette.subtext0).bg(palette.panel_bg),
-        );
-        put_text(
-            buffer,
-            area.x + 14,
-            y,
-            area.width.saturating_sub(14),
-            status,
-            Style::default().fg(palette.overlay1).bg(palette.panel_bg),
+            &integration.label,
+            integration.state,
+            integration.available,
+            palette,
         );
     }
-    let message_y = area
+    let mut message_y = area
         .y
         .saturating_add(4)
         .saturating_add(settings.integrations.len() as u16);
+    if !settings.experimental_integrations.is_empty() {
+        message_y = message_y.saturating_add(1);
+        if message_y < area.bottom() {
+            put_text(
+                buffer,
+                area.x,
+                message_y,
+                area.width,
+                " experimental (CLI: herdr integration install <name>)",
+                Style::default()
+                    .fg(palette.text)
+                    .bg(palette.panel_bg)
+                    .add_modifier(Modifier::BOLD),
+            );
+            message_y = message_y.saturating_add(1);
+        }
+        for integration in &settings.experimental_integrations {
+            if message_y >= area.bottom() {
+                break;
+            }
+            render_integration_row(
+                buffer,
+                area,
+                message_y,
+                &integration.label,
+                integration.state,
+                true,
+                palette,
+            );
+            message_y = message_y.saturating_add(1);
+        }
+    }
     for (offset, message) in settings.integration_messages.iter().take(6).enumerate() {
         let y = message_y.saturating_add(offset as u16);
         if y >= area.bottom() {
@@ -412,4 +423,47 @@ fn render_integrations(
             Style::default().fg(palette.overlay1).bg(palette.panel_bg),
         );
     }
+}
+
+fn render_integration_row(
+    buffer: &mut Buffer,
+    area: Rect,
+    y: u16,
+    label: &str,
+    state: crate::api::schema::IntegrationState,
+    available: bool,
+    palette: &Palette,
+) {
+    let (marker, color, status) = match state {
+        crate::api::schema::IntegrationState::Current => ("✓", palette.green, "installed"),
+        crate::api::schema::IntegrationState::Outdated => ("↻", palette.yellow, "update available"),
+        crate::api::schema::IntegrationState::NotInstalled if available => {
+            ("+", palette.accent, "available")
+        }
+        crate::api::schema::IntegrationState::NotInstalled => ("–", palette.overlay0, "not found"),
+    };
+    put_text(
+        buffer,
+        area.x,
+        y,
+        3,
+        &format!(" {marker}"),
+        Style::default().fg(color).bg(palette.panel_bg),
+    );
+    put_text(
+        buffer,
+        area.x + 3,
+        y,
+        11.min(area.width.saturating_sub(3)),
+        &format!("{label:<9}"),
+        Style::default().fg(palette.subtext0).bg(palette.panel_bg),
+    );
+    put_text(
+        buffer,
+        area.x + 14,
+        y,
+        area.width.saturating_sub(14),
+        status,
+        Style::default().fg(palette.overlay1).bg(palette.panel_bg),
+    );
 }

@@ -1,6 +1,6 @@
 use crate::api::schema::{
-    IntegrationInfo, IntegrationInstallResult, IntegrationState, IntegrationUninstallResult,
-    ResponseResult,
+    ExperimentalIntegrationInfo, IntegrationInfo, IntegrationInstallResult, IntegrationState,
+    IntegrationUninstallResult, ResponseResult,
 };
 use crate::app::App;
 
@@ -26,7 +26,28 @@ impl App {
                 },
             })
             .collect();
-        encode_success(id, ResponseResult::IntegrationList { integrations })
+        let experimental = crate::integration::experimental_integration_statuses()
+            .into_iter()
+            .map(|status| ExperimentalIntegrationInfo {
+                label: status.label.to_owned(),
+                state: match status.state {
+                    crate::integration::IntegrationStatusKind::NotInstalled => {
+                        IntegrationState::NotInstalled
+                    }
+                    crate::integration::IntegrationStatusKind::Current => IntegrationState::Current,
+                    crate::integration::IntegrationStatusKind::Outdated => {
+                        IntegrationState::Outdated
+                    }
+                },
+            })
+            .collect();
+        encode_success(
+            id,
+            ResponseResult::IntegrationList {
+                integrations,
+                experimental,
+            },
+        )
     }
 
     pub(super) fn handle_integration_install(
@@ -69,5 +90,65 @@ impl App {
                 details: IntegrationUninstallResult { messages },
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_app() -> App {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        App::new(
+            &crate::config::Config::default(),
+            crate::app::AppPolicy::TEST,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        )
+    }
+
+    #[test]
+    fn integration_list_payload_carries_experimental_targets() {
+        let _lock = crate::integration::integration_env_lock();
+        let base = std::env::temp_dir().join(format!(
+            "herdr-integration-list-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let env_vars = [
+            ("MUSE_CONFIG_DIR", "muse"),
+            ("KIRO_CONFIG_DIR", "kiro"),
+            ("COMMANDCODE_CONFIG_DIR", "commandcode"),
+        ];
+        for (env_var, dir) in env_vars {
+            let path = base.join(dir);
+            std::fs::create_dir_all(&path).unwrap();
+            std::env::set_var(env_var, &path);
+        }
+
+        let encoded = test_app().handle_integration_list("req_experimental".into());
+        let response: crate::api::schema::SuccessResponse =
+            serde_json::from_str(&encoded).expect("success response");
+        let crate::api::schema::ResponseResult::IntegrationList { experimental, .. } =
+            response.result
+        else {
+            panic!("expected integration list result");
+        };
+        let labels: Vec<&str> = experimental.iter().map(|row| row.label.as_str()).collect();
+        for expected in ["muse", "kiro", "command-code"] {
+            assert!(
+                labels.contains(&expected),
+                "missing {expected} in {labels:?}"
+            );
+        }
+
+        for (env_var, _) in env_vars {
+            std::env::remove_var(env_var);
+        }
+        let _ = std::fs::remove_dir_all(&base);
     }
 }
