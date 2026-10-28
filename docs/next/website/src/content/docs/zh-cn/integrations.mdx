@@ -341,7 +341,7 @@ Muse Code 集成安装属于实验性功能，仅支持 CLI。在 `herdr integra
 herdr integration install muse
 ```
 
-静默的 `SessionStart` 钩子上报当前会话 ID，用于原生会话恢复 (`muse --resume <id>`)。对于 Muse Code 的 `idle`、`working` 和 `blocked` 状态，屏幕清单检测仍然具有权威性。
+静默的 `SessionStart` 钩子上报当前会话 ID，用于原生会话恢复 (`muse resume <id>`)。对于 Muse Code 的 `idle`、`working` 和 `blocked` 状态，屏幕清单检测仍然具有权威性。
 
 Herdr 默认使用 `~/.config/muse`（设置了 `$XDG_CONFIG_HOME/muse` 或 `$MUSE_CONFIG_DIR` 时使用对应路径）。配置目录必须在安装前存在。安装会写入 `hooks/herdr-agent-state.sh`（Windows 上为 `hooks/herdr-agent-state.ps1`），并在 `settings.json` 的 `"hooks"."SessionStart"` 下更新配置。卸载会从 `settings.json` 中移除 Herdr 命令并删除钩子脚本。
 

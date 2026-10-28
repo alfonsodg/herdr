@@ -146,8 +146,8 @@ pub fn persisted_session_from_launch_args(
                 session_ref: AgentSessionRef::id(session_id.clone())?,
             })
         }
-        (crate::detect::Agent::Muse, [flag, session_id])
-            if flag == "--resume" && !session_id.starts_with('-') =>
+        (crate::detect::Agent::Muse, [subcommand, session_id])
+            if subcommand == "resume" && !session_id.starts_with('-') =>
         {
             Some(PersistedAgentSession {
                 source: "herdr:muse".into(),
@@ -350,7 +350,9 @@ pub fn plan(source: &str, agent: &str, session_ref: &AgentSessionRef) -> Option<
             }
         }
         ("herdr:muse", "muse", AgentSessionRefKind::Id) => {
-            vec!["muse".into(), "--resume".into(), session_ref.value.clone()]
+            // Muse resumes through a subcommand (`muse resume <session-ref>`);
+            // it has no `--resume` flag.
+            vec!["muse".into(), "resume".into(), session_ref.value.clone()]
         }
         ("herdr:command-code", "command-code", AgentSessionRefKind::Id) => {
             vec![
@@ -531,7 +533,7 @@ mod tests {
         assert_eq!(
             persisted_session_from_launch_args(
                 crate::detect::Agent::Muse,
-                &["--resume".into(), "muse-sess-1".into()]
+                &["resume".into(), "muse-sess-1".into()]
             )
             .unwrap()
             .session_ref
@@ -795,7 +797,7 @@ mod tests {
             )
             .unwrap()
             .argv,
-            vec!["muse", "--resume", "muse-session"]
+            vec!["muse", "resume", "muse-session"]
         );
         assert_eq!(
             plan(

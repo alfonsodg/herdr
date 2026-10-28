@@ -341,7 +341,7 @@ Muse Code フックをインストールします:
 herdr integration install muse
 ```
 
-静かな `SessionStart` フックは、ネイティブセッション復元 (`muse --resume <id>`) のためにアクティブなセッション ID を報告します。Muse Code の `idle`、`working`、および `blocked` 状態については、スクリーンマニフェスト検出が引き続き権威を持ちます。
+静かな `SessionStart` フックは、ネイティブセッション復元 (`muse resume <id>`) のためにアクティブなセッション ID を報告します。Muse Code の `idle`、`working`、および `blocked` 状態については、スクリーンマニフェスト検出が引き続き権威を持ちます。
 
 Herdr は `~/.config/muse`（または `$XDG_CONFIG_HOME/muse`、あるいは `$MUSE_CONFIG_DIR` が設定されている場合はそちら）を使用します。設定ディレクトリはインストール前に存在している必要があります。インストールによって `hooks/herdr-agent-state.sh`（Windows では `hooks/herdr-agent-state.ps1`）が書き込まれ、`settings.json` の `"hooks"."SessionStart"` が更新されます。アンインストールは `settings.json` から Herdr コマンドを削除し、フックスクリプトを削除します。
 
